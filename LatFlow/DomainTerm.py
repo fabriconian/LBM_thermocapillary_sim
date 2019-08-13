@@ -7,8 +7,6 @@ import time
 from tqdm import *
 
 import LatFlow.D2Q9 as D2Q9
-import LatFlow.D3Q15 as D3Q15
-import LatFlow.D3Q19 as D3Q19
 
 class Domain():
   def __init__(self,
@@ -30,21 +28,6 @@ class Domain():
       self.Op     = tf.reshape(D2Q9.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
       self.St     = D2Q9.STREAM
 
-    if method == "D3Q15":
-      self.Nneigh = 15
-      self.Dim    = 3
-      self.W      = tf.reshape(D3Q15.WEIGHTS, (self.Dim + 1)*[1] + [self.Nneigh])
-      self.C      = tf.reshape(D3Q15.LVELOC, self.Dim*[1] + [self.Nneigh,3])
-      self.Op     = tf.reshape(D3Q15.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
-      self.St     = D3Q15.STREAM
-
-    if method == "D3Q19":
-      self.Nneigh = 19
-      self.Dim    = 3
-      self.W      = tf.reshape(D3Q19.WEIGHTS, (self.Dim + 1)*[1] + [self.Nneigh])
-      self.C      = tf.reshape(D3Q19.LVELOC, self.Dim*[1] + [self.Nneigh,3])
-      self.Op     = tf.reshape(D3Q19.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
-      self.St     = D3Q19.STREAM
 
     if nu is not list:
       nu = [nu]
@@ -80,7 +63,8 @@ class Domain():
     self.QSource = []
     self.Rho     = []
     self.IsSolid = []
-  
+    self.Tref = 0.5
+
     for i in range(len(nu)):
       self.tau.append(     3.0*nu[i]*self.dt/(self.dx*self.dx)+0.5)
       self.tauT.append(     3.0*nu[i]*self.dt/(self.dx*self.dx)+0.5)
@@ -117,8 +101,9 @@ class Domain():
     f_boundary = simple_conv(f_boundary, self.Op)
 
     rho  = tf.reduce_mean(self.Rho[0])
-    force  =  -0.01*9.8*self.T[0]
-    self.BForce[0][0,:,:,0].assign(force)
+    force  =  tf.concat(values=[(-0.0001*(self.T[0]-tf.ones_like(self.T[0])*self.Tref))
+      ,tf.zeros_like(self.T[0]),tf.zeros_like(self.T[0])],axis=3)
+    # self.BForce[0][0,:,:,0].assign(force)
     # make vel bforce and rho
     f   = self.F[0]
     vel = self.Vel[0]
@@ -133,9 +118,11 @@ class Domain():
     else:
       vel_dot_c = simple_conv(vel, tf.transpose(self.C, [0,1,2,4,3]))
 
-    # calc Feq
-    Feq = self.W * rho * (1.0 + 3.0*vel_dot_c/self.Cs + 4.5*vel_dot_c*vel_dot_c/(self.Cs*self.Cs) - 1.5*vel_dot_vel/(self.Cs*self.Cs))
+    f_dot_c = simple_conv(force, tf.transpose(self.C, [0, 1, 3, 2]))
 
+    # calc Feq
+    Feq = self.W * rho * (1.0 + 3.0*vel_dot_c/self.Cs**2 + 4.5*vel_dot_c*vel_dot_c/(self.Cs*self.Cs) - 1.5*vel_dot_vel/(self.Cs*self.Cs))
+    Fi = 3.0*self.W * f_dot_c
     # collision calc
     NonEq = f - Feq
     if self.les:
@@ -144,7 +131,7 @@ class Domain():
       tau = 0.5*(self.tau[0]+tf.sqrt(self.tau[0]*self.tau[0] + 6.0*Q*self.Sc/rho))
     else:
       tau = self.tau[0]
-    f = f - NonEq/tau
+    f = f - NonEq/tau+Fi
 
     # combine boundary and no boundary values
     f_no_boundary = tf.multiply(f, (1.0-self.boundary))
@@ -167,7 +154,7 @@ class Domain():
     g   = self.g[0]
     vel = self.Vel[0]
     #rho = self.Rho[0] + 1e-12 # to stop dividing by zero
-    T = self.T[0]# to stop dividing by zero
+    T = self.T[0]
 
     # calc v dots
     #vel = vel_no_boundary + self.dt*self.tau[0]*(bforce_no_boundary/(rho_no_boundary + 1e-10))
@@ -178,7 +165,7 @@ class Domain():
       vel_dot_c = simple_conv(vel, tf.transpose(self.C, [0,1,2,4,3]))
 
     # calc Feq
-    geq = self.W * T * (1.0 + 3.0*vel_dot_c/self.Cs + 4.5*vel_dot_c*vel_dot_c/(self.Cs*self.Cs) - 1.5*vel_dot_vel/(self.Cs*self.Cs))
+    geq = self.W * T * (1.0 + 3.0*vel_dot_c/self.Cs**2 + 4.5*vel_dot_c*vel_dot_c/(self.Cs*self.Cs) - 1.5*vel_dot_vel/(self.Cs*self.Cs))
 
     # collision calc
     NonEq = g - geq

@@ -20,4 +20,16 @@ def pad_mobius(f):
   if len(f.get_shape()) == 5:
     f_mobius = tf.concat(axis=3, values=[f_mobius[:,:,:,-1:], f_mobius, f_mobius[:,:,:,0:1]])
   return f_mobius
- 
+
+def grad(field):
+  fxp = tf.concat(axis=1, values=[field[:, 1:], field[:, -1:]])
+  fxm = tf.concat(axis=1, values=[field[:, 0:1], -1 * field[:, 0:-1]])
+  fx = tf.expand_dims(tf.concat(axis=1,
+                  values=[fxp[:, 0:1] - fxm[:, 0:1],
+                          (fxp[:, 1:-1] + fxm[:, 1:-1]) / 2, fxp[:, -1:] + fxm[:, -1:]]),-1)
+  fyp = tf.concat(axis=0, values=[field[1:,:], field[ -1:,:]])
+  fym = tf.concat(axis=0, values=[field[0:1,:], -1 * field[ 0:-1,:]])
+  fy = tf.expand_dims(tf.concat(axis=0,
+                 values=[fyp[0:1,:] - fym[0:1,:],
+                         (fyp[1:-1,:] + fym[1:-1,:]) / 2, fyp[-1:,:] + fym[ -1:,:]]),-1)
+  return tf.concat(axis=2,values=[fy,fx])

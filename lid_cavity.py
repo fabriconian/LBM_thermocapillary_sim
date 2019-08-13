@@ -84,6 +84,8 @@ def lid_setup_step(domain, value=0.001):
 def lid_save(domain, sess):
   frame = sess.run(domain.T[0])
   frame = np.sqrt(np.square(frame[0,:,:,0]) )#+ np.square(frame[0,:,:,1]) + np.square(frame[0,:,:,2]))
+  print(np.max(frame))
+  print(np.min(frame))
   frame = np.uint8(255 * frame/np.max(frame))
   frame = cv2.applyColorMap(frame, 2)
   video.write(frame)
@@ -98,7 +100,7 @@ def run():
   )
 
   # domain
-  domain = dom.Domain("D2Q9", nu, Ndim, boundary_T,boundaryT=boundary_T,les=False)
+  domain = dom.Domain("D2Q9", nu, Ndim, boundary,boundaryT=boundary_T,les=False)
 
   # make lattice state, boundary and input velocity
   initialize_step = lid_init_step(domain, value=0.08)
