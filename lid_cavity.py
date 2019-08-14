@@ -43,11 +43,15 @@ def lid_init_step(domain, value=0.08):
 
   vel = vel * (1.0 - domain.boundary)
   rho = (1.0 - domain.boundary)
+  force = tf.zeros_like(vel)
+
 
   f_step = domain.F[0].assign(feq)
   rho_step = domain.Rho[0].assign(rho)
   vel_step = domain.Vel[0].assign(vel)
-  initialize_step = tf.group(*[f_step, rho_step, vel_step])
+  force_step = domain.BForce[0].assign(force)
+
+  initialize_step = tf.group(*[f_step, rho_step, vel_step, force_step])
   return initialize_step
 
 def lid_init_step_T(domain, value=1):
@@ -81,11 +85,28 @@ def lid_setup_step(domain, value=0.001):
   vel_step = domain.Vel[0].assign(vel)
   return vel_step
 
-def lid_save(domain, sess):
+
+def lid_save_T(domain, sess):
   frame = sess.run(domain.T[0])
-  frame = np.sqrt(np.square(frame[0,:,:,0]) )#+ np.square(frame[0,:,:,1]) + np.square(frame[0,:,:,2]))
-  print(np.max(frame))
-  print(np.min(frame))
+  frame = np.sqrt(np.square(frame[0,:,:,0]) )
+  # print(np.max(frame))
+  # print(np.min(frame))
+  frame = np.uint8(255 * frame/np.max(frame))
+  frame = cv2.applyColorMap(frame, 2)
+  video.write(frame)
+
+
+def ForceUpdate(self):
+    force = tf.concat(values=[(-0.0001 * (self.T[0] - tf.ones_like(self.T[0]) * self.Tref))
+      , tf.zeros_like(self.T[0]), tf.zeros_like(self.T[0])], axis=3)
+    update = self.BForce[0].assign(force)
+    return update
+
+def lid_save_vel(domain, sess):
+  frame = sess.run(domain.Vel[0])
+  frame = np.sqrt(np.square(frame[0,:,:,0])+ np.square(frame[0,:,:,1]) + np.square(frame[0,:,:,2]))
+  # print(np.max(frame))
+  # print(np.min(frame))
   frame = np.uint8(255 * frame/np.max(frame))
   frame = cv2.applyColorMap(frame, 2)
   video.write(frame)
@@ -119,7 +140,7 @@ def run():
   sess.run(init)
 
   # run steps
-  domain.Solve(sess, 10000, initialize_step,initialize_step_T, setup_step, lid_save, 60)
+  domain.Solve(sess, 10000, initialize_step,initialize_step_T ,setup_step, lid_save_vel, 60)
 
 def main(argv=None):  # pylint: disable=unused-argument
   run()

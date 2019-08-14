@@ -20,11 +20,14 @@ class Domain():
                les=True,
                train_les=False):
 
+    self.Ndim = Ndim
+
     if method == "D2Q9":
       self.Nneigh = 9
       self.Dim    = 2
       self.W      = tf.reshape(D2Q9.WEIGHTS, (self.Dim + 1)*[1] + [self.Nneigh])
       self.C      = tf.reshape(D2Q9.LVELOC, self.Dim*[1] + [self.Nneigh,3])
+      self.Cten   = tf.expand_dims(tf.concat(axis = 0,values=[[[self.C[0,0]]*self.Ndim[0]]*self.Ndim[1]]),0)
       self.Op     = tf.reshape(D2Q9.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
       self.St     = D2Q9.STREAM
 
@@ -39,11 +42,10 @@ class Domain():
     self.Cs     = dx/dt
     self.Step   = 1
     self.Sc     = 0.17
-    self.Ndim   = Ndim
+
     self.Ncells = np.prod(np.array(Ndim))
     self.boundary = tf.constant(boundary)
     self.boundaryT = tf.constant(boundaryT)
-
     self.Nl     = len(nu)
     self.tau    = []
     self.tauT   = []
@@ -100,15 +102,16 @@ class Domain():
     f_boundary = tf.multiply(self.F[0], self.boundary)
     f_boundary = simple_conv(f_boundary, self.Op)
 
-    rho  = tf.reduce_mean(self.Rho[0])
-    force  =  tf.concat(values=[(-0.0001*(self.T[0]-tf.ones_like(self.T[0])*self.Tref))
-      ,tf.zeros_like(self.T[0]),tf.zeros_like(self.T[0])],axis=3)
-    # self.BForce[0][0,:,:,0].assign(force)
-    # make vel bforce and rho
-    f   = self.F[0]
-    vel = self.Vel[0]
-    #rho = self.Rho[0] + 1e-12 # to stop dividing by zero
     rho = self.Rho[0]# to stop dividing by zero
+
+    # make vel bforce and rho
+    vel = self.Vel[0]
+    f   = self.F[0]
+
+    force  =  self.BForce[0]
+    rho = self.Rho[0]  # to stop dividing by zero
+
+    #rho = self.Rho[0] + 1e-12 # to stop dividing by zero
 
     # calc v dots
     #vel = vel_no_boundary + self.dt*self.tau[0]*(bforce_no_boundary/(rho_no_boundary + 1e-10))
@@ -120,9 +123,15 @@ class Domain():
 
     f_dot_c = simple_conv(force, tf.transpose(self.C, [0, 1, 3, 2]))
 
+    uten = tf.reshape(tf.concat(axis=0, values=[[self.Vel[0]] * int(self.Nneigh)]),shape= tf.shape(self.Cten))
+    ften = tf.reshape(tf.concat(axis=0, values=[[force] * int(self.Nneigh)]),shape= tf.shape(self.Cten))
+    ften = 3.0*self.W*tf.reduce_sum(ften*(self.Cten-uten),axis=-1)/self.Cs**2
+
+
+
     # calc Feq
     Feq = self.W * rho * (1.0 + 3.0*vel_dot_c/self.Cs**2 + 4.5*vel_dot_c*vel_dot_c/(self.Cs*self.Cs) - 1.5*vel_dot_vel/(self.Cs*self.Cs))
-    Fi = 3.0*self.W * f_dot_c
+    Fi = 9.0*self.W * f_dot_c*vel_dot_c/self.Cs**4+ften
     # collision calc
     NonEq = f - Feq
     if self.les:
@@ -131,7 +140,7 @@ class Domain():
       tau = 0.5*(self.tau[0]+tf.sqrt(self.tau[0]*self.tau[0] + 6.0*Q*self.Sc/rho))
     else:
       tau = self.tau[0]
-    f = f - NonEq/tau+Fi
+    f = f - NonEq/tau +Fi
 
     # combine boundary and no boundary values
     f_no_boundary = tf.multiply(f, (1.0-self.boundary))
@@ -188,8 +197,40 @@ class Domain():
     else:
       # put computation back in graph
       self.g[0] = g
-      
 
+  def ForceUpdate(self):
+    force = tf.concat(values=[(-0.0001 * (self.T[0] - tf.ones_like(self.T[0]) * self.Tref))
+      , tf.zeros_like(self.T[0]), tf.zeros_like(self.T[0])], axis=3)
+    update = self.BForce[0].assign(force)
+    return update
+
+  def MomentsUpdate(self, graph_unroll=False):
+    f_pad = self.F[0]
+    Force  = self.BForce[0]
+    Rho = tf.expand_dims(tf.reduce_sum(f_pad, self.Dim + 1), self.Dim + 1)
+    Vel = simple_conv(f_pad, self.C)
+    Vel = Vel / (self.Cs * Rho) + Force/2.0/Rho
+    if not graph_unroll:
+      # create steps
+      stream_step = self.F[0].assign(f_pad)
+      Rho_step = self.Rho[0].assign(Rho)
+      Vel_step = self.Vel[0].assign(Vel)
+      # force_step = self.BForce[0].assign(Force)
+      step = tf.group(*[stream_step, Rho_step, Vel_step])
+      return step
+    else:
+      self.F[0] = f_pad
+      self.Rho_step[0] = Rho
+      self.Vel_step[0] = Vel
+
+  def StreamSC2(self, graph_unroll=False):
+    f_pad = pad_mobius(self.F[0])
+    f_pad = simple_conv(f_pad, self.St)
+    if not graph_unroll:
+      step = self.F[0].assign(f_pad)
+      return step
+    else:
+      self.F[0] = f_pad
 
   def StreamSC(self, graph_unroll=False):
     # stream f
@@ -227,7 +268,6 @@ class Domain():
       self.g[0] = g_pad
       self.T[0] = T
 
-
   def Initialize(self, graph_unroll=False):
     np_f_zeros = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float32)
     f_zero = tf.constant(np_f_zeros)
@@ -256,40 +296,44 @@ class Domain():
             setup_step,
             save_step,
             save_interval):
-    # make steps
 
+
+    # make steps
     assign_step = self.Initialize()
     assign_step_T = self.Initialize_T()
-
-    stream_step = self.StreamSC()
+    stream_step = self.StreamSC2()
     stream_step_T = self.Stream_T()
-
+    update_moments_step = self.MomentsUpdate()
+    force_update = self.ForceUpdate()
     collide_step = self.CollideSC()
     collide_step_T = self.Collide_T()
 
+
     # run solver
-    #this 2 used just twice
     sess.run(assign_step)
     sess.run(assign_step_T)
-
     sess.run(initialize_step)
     sess.run(initialize_step_T)
-
-    #in each iterarion
-
+    sess.run(force_update)
     sess.run(stream_step)
+    sess.run(update_moments_step)
     sess.run(stream_step_T)
+
     num_steps = int(Tf/self.dt)
+
 
     #the status bar initializer
     for i in tqdm(range(num_steps)):
       if int(self.time/save_interval) > int((self.time-self.dt)/save_interval):
         save_step(self, sess)
-      sess.run(setup_step) 
+      sess.run(setup_step)
+      sess.run(force_update)
       sess.run(collide_step)
       sess.run(collide_step_T)
       sess.run(stream_step)
-      sess.run(stream_step_T)
+      sess.run(update_moments_step)
+
+      # sess.run(stream_step_T)
       self.time += self.dt
 
   def Unroll(self, start_f, num_steps, setup_computation):
