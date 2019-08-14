@@ -7,7 +7,11 @@ import time
 from tqdm import *
 
 import LatFlow.D2Q9 as D2Q9
-
+''''
+class Boundary():
+  def __init__(self,
+               Ndim):
+'''
 class Domain():
   def __init__(self,
                method,
@@ -132,6 +136,7 @@ class Domain():
     # calc Feq
     Feq = self.W * rho * (1.0 + 3.0*vel_dot_c/self.Cs**2 + 4.5*vel_dot_c*vel_dot_c/(self.Cs*self.Cs) - 1.5*vel_dot_vel/(self.Cs*self.Cs))
     Fi = 9.0*self.W * f_dot_c*vel_dot_c/self.Cs**4+ften
+    # Fi = 3.0 * self.W * f_dot_c
     # collision calc
     NonEq = f - Feq
     if self.les:
@@ -140,7 +145,7 @@ class Domain():
       tau = 0.5*(self.tau[0]+tf.sqrt(self.tau[0]*self.tau[0] + 6.0*Q*self.Sc/rho))
     else:
       tau = self.tau[0]
-    f = f - NonEq/tau +Fi
+    f = f - NonEq/tau +Fi*(1-1/2/tau)
 
     # combine boundary and no boundary values
     f_no_boundary = tf.multiply(f, (1.0-self.boundary))

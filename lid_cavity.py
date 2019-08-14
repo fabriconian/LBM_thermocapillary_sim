@@ -14,7 +14,7 @@ fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
 shape = [100, 100]
-success = video.open('lid_flow.mov', fourcc, 30, (shape[1], shape[0]), True)
+success = video.open('lid_flow2.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -131,8 +131,6 @@ def run():
 
   # init things
   init = tf.global_variables_initializer()
-  a = tf.constant([10, 20])
-  b = tf.constant([1.0, 2.0])
   # start sess
   sess = tf.Session()
 
