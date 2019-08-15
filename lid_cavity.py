@@ -13,10 +13,19 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [7, 7]
+shape = [100, 100]
 success = video.open('lid_flow2.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
+
+
+def make_lid_boundaryt2(shape):
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary[:,:,0,:] = 1.0
+  boundary[:,shape[0]-1,:,:] = 1.0
+  boundary[:,:,shape[1]-1,:] = 1.0
+  boundary[:, 0,:, :] = 1.0
+  return boundary
 
 def make_lid_boundary(shape):
   boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
@@ -25,7 +34,7 @@ def make_lid_boundary(shape):
   boundary[:,:,shape[1]-1,:] = 1.0
   return boundary
 
-def make_lid_boundary_T(shape, Tup=2.0, Tdown=1.0):
+def make_lid_boundary_T(shape, Tup=6.0, Tdown=1.0):
 
   #boundaryy upp
   boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
@@ -134,9 +143,9 @@ def run():
   Ndim = shape
   boundary = make_lid_boundary(shape=Ndim)
   boundary_T = make_lid_boundary_T(shape=Ndim)
-
+  boundaryt2 = make_lid_boundaryt2(shape=Ndim)
   # domain
-  domain = dom.Domain("D2Q9", nu, Ndim, boundary,boundaryT=boundary_T,les=False)
+  domain = dom.Domain("D2Q9", nu, Ndim, boundary,boundaryT=boundaryt2,boundary_T2= boundary_T,les=False)
 
   # make lattice state, boundary and input velocity
   initialize_step = lid_init_step(domain, value=0.08)

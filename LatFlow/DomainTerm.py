@@ -21,6 +21,9 @@ class BoundaryT():
       if self.type == 'CT':
         self.value = value
 
+      if self.type=='ZF':
+          self.value = 0
+
 class Domain():
   def __init__(self,
                method,
@@ -28,6 +31,7 @@ class Domain():
                Ndim,
                boundary,
                boundaryT,
+               boundary_T2,
                dx=1.0,
                dt=1.0,
                les=True,
@@ -59,7 +63,8 @@ class Domain():
     self.Ncells = np.prod(np.array(Ndim))
     self.boundary = tf.constant(boundary)
     # self.boundaryT = tf.constant(np.array([b.boundary for b in boundaryT]))
-    self.boundaryT = boundaryT
+    self.boundaryT =tf.constant(boundaryT)
+    self.boundaryT2 = boundary_T2
     self.Nl     = len(nu)
     self.tau    = []
     self.tauT   = []
@@ -212,13 +217,58 @@ class Domain():
     else:
       # put computation back in graph
       self.g[0] = g
-  def UpplyBC(self):
-    #upper boundary
-    if self.boundaryT[0].type == 'CT':
-      dd = 1
+
+    #applying Inumaro BC for the thermal population
+  def ApplyBC(self):
+      #upper boundary
+      g = self.g[0]
+      g_inn = g[:, 1:-1,1:-1,:]
+      gr = g[:, :, -2:-1, :]
+      gl = g[:, :, :1, :]
+
+      #update upper wall
+      if self.boundaryT2[0].type == 'CT':
+          gup = g[:, :1, :, :]
+          gwall = (tf.ones_like(gup[:, :, :, 0:1])*self.boundaryT2[0].value \
+                   -gup[:, :, :, 0:1]+gup[:, :, :, 1:2]+gup[:, :, :, 2:3]+gup[:,:,:, 4:5]+gup[:, :, :, 5:6]+gup[:, :, :, 8:]) \
+                  /(self.W[:, :, :, 3:4]+self.W[:, :, :, 7:8]+self.W[:, :, :, 6:7])
+          guup = tf.concat(values=[gup[:, :, :, 0:3],gwall*self.W[:, :, :, 3:4], \
+                                   gup[:, :, :, 4:6],gwall*self.W[:, :, :, 6:7], \
+                                   gwall * self.W[:, :, :, 7:8],gup[:, :, :, 8:]],axis=-1)
+      # update down wall
+      if self.boundaryT2[2].type == 'CT':
+          gup = g[:, -2:-1, :, :]
+          gwall = (tf.ones_like(gup[:, :, :, 0:1]) * self.boundaryT2[2].value \
+                   - gup[:, :, :, 0:1] + gup[:, :, :, 2:3] + gup[:, :, :, 3:4]+ gup[:, :, :, 4:5] + gup[:, :, :,6:7] + gup[:, :, :,7:8]) \
+                  / (self.W[:, :, :, 1:2] + self.W[:, :, :, 5:6] + self.W[:, :, :, 8:])
+          gdown = tf.concat(values=[gup[:, :, :, 0:1], gwall * self.W[:, :, :, 1:2], \
+                                    gup[:, :, :, 2:5],  gwall * self.W[:, :, :, 5:6], \
+                                    gup[:, :, :, 6:8],   gwall * self.W[:, :, :, 8:]], axis=-1)
+
+      # update right wall
+      if self.boundaryT2[1].type == 'ZF':
+          gup = g[:, :, -2:-1, :]
+          gwall = (gup[:, :, :, 2:3] + gup[:, :, :, 5:6]+ gup[:, :, :, 6:7]) \
+                  / (self.W[:, :, :, 4:5] + self.W[:, :, :, 7:8] + self.W[:, :, :, 8:])
+          gright = tf.concat(values=[gup[:, :, :, 0:4], gwall * self.W[:, :, :, 4:5], \
+                                     gup[:, :, :, 5:7],  gwall * self.W[:, :, :, 7:8], \
+                                     gwall * self.W[:, :, :, 8:]], axis=-1)
+
+      # update left wall
+      if self.boundaryT2[3].type == 'ZF':
+          gup = g[:, :, :1, :]
+          gwall = (gup[:, :, :, 4:5] + gup[:, :, :, 7:8] + gup[:, :, :, 8:]) \
+                  / (self.W[:, :, :, 2:3] + self.W[:, :, :, 5:6] + self.W[:, :, :, 6:7])
+          gleft = tf.concat(values=[gup[:, :, :, 0:2], gwall * self.W[:, :, :, 2:3], \
+                                     gup[:, :, :, 3:5], gwall * self.W[:, :, :, 5:6], \
+                                     gwall * self.W[:, :, :, 6:7],gup[:, :, :, 7:]], axis=-1)
+
+      res = tf.concat(values=[guup, tf.concat(values=[gleft[:,1:-1,:,:],g_inn,gright[:,1:-1,:,:]],axis=2), gdown], axis=1)
+      updbc_step = self.g[0].assign(res)
+      return updbc_step
 
   def ForceUpdate(self):
-    force = tf.concat(values=[(-0.0001 * (self.T[0] - tf.ones_like(self.T[0]) * self.Tref))
+    force = tf.concat(values=[(-0.00000001 * (self.T[0] - tf.ones_like(self.T[0]) * self.Tref))
       , tf.zeros_like(self.T[0]), tf.zeros_like(self.T[0])], axis=3)
     update = self.BForce[0].assign(force)
     return update
@@ -326,6 +376,7 @@ class Domain():
     force_update = self.ForceUpdate()
     collide_step = self.CollideSC()
     collide_step_T = self.Collide_T()
+    bc_update_T = self.ApplyBC()
 
 
     # run solver
@@ -340,7 +391,7 @@ class Domain():
 
     num_steps = int(Tf/self.dt)
 
-
+    self.ApplyBC()
     #the status bar initializer
     for i in tqdm(range(num_steps)):
       if int(self.time/save_interval) > int((self.time-self.dt)/save_interval):
@@ -350,6 +401,8 @@ class Domain():
       sess.run(collide_step)
       sess.run(collide_step_T)
       sess.run(stream_step)
+      sess.run(stream_step_T)
+      sess.run(bc_update_T)
       sess.run(update_moments_step)
 
       # sess.run(stream_step_T)
