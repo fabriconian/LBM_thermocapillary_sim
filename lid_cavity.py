@@ -13,7 +13,7 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [100, 100]
+shape = [7, 7]
 success = video.open('lid_flow2.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
@@ -25,13 +25,29 @@ def make_lid_boundary(shape):
   boundary[:,:,shape[1]-1,:] = 1.0
   return boundary
 
-def make_lid_boundary_T(shape):
+def make_lid_boundary_T(shape, Tup=2.0, Tdown=1.0):
+
+  #boundaryy upp
   boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
-  boundary[:,:,0,:] = 1.0
-  boundary[:,shape[0]-1,:,:] = 1.0
-  boundary[:,:,shape[1]-1,:] = 1.0
-  boundary[:, 0, :,:] = 1.0
-  return boundary
+  boundary[:,0,:,:] = 1.0
+  bup = dom.BoundaryT(boundary=boundary,value=Tup,type='CT',n=np.array([-1,0,0]))
+
+  # boundaryy down
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary[:, -1, :, :] = 1.0
+  bdown = dom.BoundaryT(boundary=boundary, value=Tdown, type='CT',n=np.array([1,0,0]))
+
+  # boundaryy LEFT
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary[:, :, 0, :] = 1.0
+  bl = dom.BoundaryT(boundary=boundary,  type='ZF',n=np.array([0,0,0]))
+
+  # boundaryy LEFT
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary[:, :, -1, :] = 1.0
+  br = dom.BoundaryT(boundary=boundary, type='ZF')
+
+  return [bup,br,bdown,bl]
 
 
 def lid_init_step(domain, value=0.08):
@@ -117,8 +133,7 @@ def run():
   nu = input_vel*(10.0)
   Ndim = shape
   boundary = make_lid_boundary(shape=Ndim)
-  boundary_T = make_lid_boundary_T(shape=Ndim
-  )
+  boundary_T = make_lid_boundary_T(shape=Ndim)
 
   # domain
   domain = dom.Domain("D2Q9", nu, Ndim, boundary,boundaryT=boundary_T,les=False)

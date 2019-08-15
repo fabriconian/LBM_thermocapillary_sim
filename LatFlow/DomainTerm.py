@@ -7,11 +7,20 @@ import time
 from tqdm import *
 
 import LatFlow.D2Q9 as D2Q9
-''''
-class Boundary():
+
+class BoundaryT():
   def __init__(self,
-               Ndim):
-'''
+               boundary,
+               type='CT',
+               n=np.array([1,0,0]),
+               value=None):
+      self.boundary = boundary
+      self.type = type
+      self.value = None
+      self.n = n
+      if self.type == 'CT':
+        self.value = value
+
 class Domain():
   def __init__(self,
                method,
@@ -49,7 +58,8 @@ class Domain():
 
     self.Ncells = np.prod(np.array(Ndim))
     self.boundary = tf.constant(boundary)
-    self.boundaryT = tf.constant(boundaryT)
+    # self.boundaryT = tf.constant(np.array([b.boundary for b in boundaryT]))
+    self.boundaryT = boundaryT
     self.Nl     = len(nu)
     self.tau    = []
     self.tauT   = []
@@ -202,6 +212,10 @@ class Domain():
     else:
       # put computation back in graph
       self.g[0] = g
+  def UpplyBC(self):
+    #upper boundary
+    if self.boundaryT[0].type == 'CT':
+      dd = 1
 
   def ForceUpdate(self):
     force = tf.concat(values=[(-0.0001 * (self.T[0] - tf.ones_like(self.T[0]) * self.Tref))

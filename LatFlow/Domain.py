@@ -10,6 +10,9 @@ import LatFlow.D2Q9 as D2Q9
 import LatFlow.D3Q15 as D3Q15
 import LatFlow.D3Q19 as D3Q19
 
+
+
+
 class Domain():
   def __init__(self,
                method,
