@@ -13,7 +13,7 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [100, 100]
+shape = [20, 400]
 success = video.open('lid_flow2.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
@@ -34,7 +34,7 @@ def make_lid_boundary(shape):
   boundary[:,:,shape[1]-1,:] = 1.0
   return boundary
 
-def make_lid_boundary_T(shape, Tup=6.0, Tdown=1.0):
+def make_lid_boundary_T(shape, Tup=60.0, Tdown=1.0):
 
   #boundaryy upp
   boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
@@ -145,7 +145,7 @@ def run():
   boundary_T = make_lid_boundary_T(shape=Ndim)
   boundaryt2 = make_lid_boundaryt2(shape=Ndim)
   # domain
-  domain = dom.Domain("D2Q9", nu, Ndim, boundary,boundaryT=boundaryt2,boundary_T2= boundary_T,les=False)
+  domain = dom.Domain("D2Q9", nu, Ndim, boundaryt2,boundaryT=boundaryt2,boundary_T2= boundary_T,les=False)
 
   # make lattice state, boundary and input velocity
   initialize_step = lid_init_step(domain, value=0.08)
@@ -162,7 +162,7 @@ def run():
   sess.run(init)
 
   # run steps
-  domain.Solve(sess, 10000, initialize_step,initialize_step_T ,setup_step, lid_save_vel, 60)
+  domain.Solve(sess, 2500, initialize_step,initialize_step_T ,setup_step, lid_save_vel, 60)
 
 def main(argv=None):  # pylint: disable=unused-argument
   run()

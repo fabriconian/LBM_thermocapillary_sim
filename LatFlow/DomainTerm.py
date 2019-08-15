@@ -150,8 +150,8 @@ class Domain():
 
     # calc Feq
     Feq = self.W * rho * (1.0 + 3.0*vel_dot_c/self.Cs**2 + 4.5*vel_dot_c*vel_dot_c/(self.Cs*self.Cs) - 1.5*vel_dot_vel/(self.Cs*self.Cs))
-    Fi = 9.0*self.W * f_dot_c*vel_dot_c/self.Cs**4+ften
-    # Fi = 3.0 * self.W * f_dot_c
+    # Fi = 9.0*self.W * f_dot_c*vel_dot_c/self.Cs**4+ften
+    Fi = 3.0 * self.W * f_dot_c
     # collision calc
     NonEq = f - Feq
     if self.les:
@@ -176,8 +176,8 @@ class Domain():
 
   def Collide_T(self, graph_unroll=False):
     # boundary bounce piece
-    g_boundary = tf.multiply(self.g[0], self.boundaryT)
-    g_boundary = simple_conv(g_boundary, self.Op)
+    # g_boundary = tf.multiply(self.g[0], self.boundaryT)
+    # g_boundary = simple_conv(g_boundary, self.Op)
 
     # make vel bforce and rho
     g   = self.g[0]
@@ -207,8 +207,8 @@ class Domain():
     g = g - NonEq/tau
 
     # combine boundary and no boundary values
-    g_no_boundary = tf.multiply(g, (1.0-self.boundaryT))
-    g = g_no_boundary + g_boundary
+    # g_no_boundary = tf.multiply(g, (1.0-self.boundaryT))
+    # g = g_no_boundary + g_boundary
 
     if not graph_unroll:
       # make step
@@ -268,7 +268,7 @@ class Domain():
       return updbc_step
 
   def ForceUpdate(self):
-    force = tf.concat(values=[(-0.00000001 * (self.T[0] - tf.ones_like(self.T[0]) * self.Tref))
+    force = tf.concat(values=[(0.01 * (self.T[0] - tf.ones_like(self.T[0]) * 1.0))
       , tf.zeros_like(self.T[0]), tf.zeros_like(self.T[0])], axis=3)
     update = self.BForce[0].assign(force)
     return update
@@ -396,7 +396,7 @@ class Domain():
     for i in tqdm(range(num_steps)):
       if int(self.time/save_interval) > int((self.time-self.dt)/save_interval):
         save_step(self, sess)
-      sess.run(setup_step)
+      # sess.run(setup_step)
       sess.run(force_update)
       sess.run(collide_step)
       sess.run(collide_step_T)
