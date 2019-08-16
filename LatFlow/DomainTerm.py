@@ -27,7 +27,9 @@ class BoundaryT():
 class Domain():
   def __init__(self,
                method,
-               nu, 
+               nu,
+               K,
+               beta,
                Ndim,
                boundary,
                boundaryT,
@@ -44,19 +46,23 @@ class Domain():
       self.Dim    = 2
       self.W      = tf.reshape(D2Q9.WEIGHTS, (self.Dim + 1)*[1] + [self.Nneigh])
       self.C      = tf.reshape(D2Q9.LVELOC, self.Dim*[1] + [self.Nneigh,3])
-      self.Cten   = tf.expand_dims(tf.concat(axis = 0,values=[[[self.C[0,0]]*self.Ndim[0]]*self.Ndim[1]]),0)
+      self.Cten   = tf.expand_dims(tf.concat(axis = 0,values=[[[self.C[0,0]]*self.Ndim[1]]*self.Ndim[0]]),0)
       self.Op     = tf.reshape(D2Q9.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
       self.St     = D2Q9.STREAM
 
 
     if nu is not list:
       nu = [nu]
+      K =  [K]
   
     self.les    = les 
     self.time   = 0.0
-    self.dt     = dt
-    self.dx     = dx
-    self.Cs     = dx/dt
+    self.dt     = 1.0 #starred unit (dimensionalised)
+    self.dx     = 1.0 #starred unit (dimensionalised)
+    self.Cs     = dx/dt #starred unit (dimensionalised)
+    self.dt_real = dt
+    self.dx_real = dx
+    self.rho_real = 1000
     self.Step   = 1
     self.Sc     = 0.17
 
@@ -67,7 +73,7 @@ class Domain():
     self.boundaryT2 = boundary_T2
     self.Nl     = len(nu)
     self.tau    = []
-    self.tauT   = []
+    self.taug   = []
     self.G      = []
     self.Gs     = []
     self.Rhoref = []
@@ -85,10 +91,13 @@ class Domain():
     self.Rho     = []
     self.IsSolid = []
     self.Tref = 0.5
+    self.step_count = 0
+    self.beta=beta
 
     for i in range(len(nu)):
-      self.tau.append(     3.0*nu[i]*self.dt/(self.dx*self.dx)+0.5)
-      self.tauT.append(     3.0*nu[i]*self.dt/(self.dx*self.dx)+0.5)
+      self.tau.append(     3.0*nu[i]*self.dt_real/(self.dx_real*self.dx_real)+0.5)
+      self.taug.append(     3.0*K[i]*self.dt_real/(self.dx_real*self.dx_real)+0.5)
+      print(self.tau,self.taug)
       self.G.append(       0.0)
       self.Gs.append(      0.0)
       self.Rhoref.append(  200.0)
@@ -133,7 +142,7 @@ class Domain():
     #rho = self.Rho[0] + 1e-12 # to stop dividing by zero
 
     # calc v dots
-    #vel = vel_no_boundary + self.dt*self.tau[0]*(bforce_no_boundary/(rho_no_boundary + 1e-10))
+
     vel_dot_vel = tf.expand_dims(tf.reduce_sum(vel * vel, axis=self.Dim+1), axis=self.Dim+1)
     if self.Dim == 2:
       vel_dot_c = simple_conv(vel, tf.transpose(self.C, [0,1,3,2]))
@@ -150,8 +159,8 @@ class Domain():
 
     # calc Feq
     Feq = self.W * rho * (1.0 + 3.0*vel_dot_c/self.Cs**2 + 4.5*vel_dot_c*vel_dot_c/(self.Cs*self.Cs) - 1.5*vel_dot_vel/(self.Cs*self.Cs))
-    # Fi = 9.0*self.W * f_dot_c*vel_dot_c/self.Cs**4+ften
-    Fi = 3.0 * self.W * f_dot_c
+    Fi = 9.0*self.W * f_dot_c*vel_dot_c/self.Cs**4+ften
+    # Fi = 3.0 * self.W * f_dot_c
     # collision calc
     NonEq = f - Feq
     if self.les:
@@ -198,12 +207,8 @@ class Domain():
 
     # collision calc
     NonEq = g - geq
-    if self.les:
-      Q = tf.expand_dims(tf.reduce_sum(NonEq*NonEq*self.EEk, axis=self.Dim+1), axis=self.Dim+1)
-      Q = tf.sqrt(2.0*Q)
-      tau = 0.5*(self.tau[0]+tf.sqrt(self.tau[0]*self.tau[0] + 6.0*Q*self.Sc/rho))
-    else:
-      tau = self.tau[0]
+
+    tau = self.taug[0]
     g = g - NonEq/tau
 
     # combine boundary and no boundary values
@@ -223,8 +228,6 @@ class Domain():
       #upper boundary
       g = self.g[0]
       g_inn = g[:, 1:-1,1:-1,:]
-      gr = g[:, :, -2:-1, :]
-      gl = g[:, :, :1, :]
 
       #update upper wall
       if self.boundaryT2[0].type == 'CT':
@@ -267,11 +270,27 @@ class Domain():
       updbc_step = self.g[0].assign(res)
       return updbc_step
 
+
   def ForceUpdate(self):
-    force = tf.concat(values=[(0.01 * (self.T[0] - tf.ones_like(self.T[0]) * 1.0))
+    g = 9.8*self.dt_real*self.dt_real/self.dx_real
+    force = tf.concat(values=[(20.0*self.beta*g* (self.T[0] - tf.ones_like(self.T[0]) * self.Tref))
       , tf.zeros_like(self.T[0]), tf.zeros_like(self.T[0])], axis=3)
     update = self.BForce[0].assign(force)
     return update
+
+  def MomentsUpdate_T(self, graph_unroll=False):
+    g_pad = self.g[0]
+    T = tf.expand_dims(tf.reduce_sum(g_pad, self.Dim + 1), self.Dim + 1)
+    if not graph_unroll:
+        # create steps
+        stream_step = self.g[0].assign(g_pad)
+        T_step = self.T[0].assign(T)
+        step = tf.group(*[stream_step, T_step])
+        return step
+    else:
+        self.g[0] = g_pad
+        self.T[0] = T
+
 
   def MomentsUpdate(self, graph_unroll=False):
     f_pad = self.F[0]
@@ -292,7 +311,7 @@ class Domain():
       self.Rho_step[0] = Rho
       self.Vel_step[0] = Vel
 
-  def StreamSC2(self, graph_unroll=False):
+  def StreamSC(self, graph_unroll=False):
     f_pad = pad_mobius(self.F[0])
     f_pad = simple_conv(f_pad, self.St)
     if not graph_unroll:
@@ -301,25 +320,6 @@ class Domain():
     else:
       self.F[0] = f_pad
 
-  def StreamSC(self, graph_unroll=False):
-    # stream f
-    f_pad = pad_mobius(self.F[0])
-    f_pad = simple_conv(f_pad, self.St)
-    # calc new velocity and density
-    Rho = tf.expand_dims(tf.reduce_sum(f_pad, self.Dim+1), self.Dim+1)
-    Vel = simple_conv(f_pad, self.C)
-    Vel = Vel/(self.Cs * Rho)
-    if not graph_unroll:
-      # create steps
-      stream_step = self.F[0].assign(f_pad)
-      Rho_step =    self.Rho[0].assign(Rho)
-      Vel_step =    self.Vel[0].assign(Vel)
-      step = tf.group(*[stream_step, Rho_step, Vel_step])
-      return step
-    else:
-      self.F[0] = f_pad
-      self.Rho_step[0] = Rho
-      self.Vel_step[0] = Vel
 
   def Stream_T(self, graph_unroll=False):
     # stream f
@@ -350,7 +350,7 @@ class Domain():
   def Initialize_T(self, graph_unroll=False):
     np_f_zeros = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float32)
     g_zero = tf.constant(np_f_zeros)
-    g_zero = g_zero + self.W
+    g_zero = g_zero + self.W*self.Tref
     if not graph_unroll:
       assign_step = self.g[0].assign(g_zero)
       return assign_step
@@ -370,10 +370,15 @@ class Domain():
     # make steps
     assign_step = self.Initialize()
     assign_step_T = self.Initialize_T()
-    stream_step = self.StreamSC2()
+
+    stream_step = self.StreamSC()
     stream_step_T = self.Stream_T()
+
     update_moments_step = self.MomentsUpdate()
+    update_moments_T_step = self.MomentsUpdate_T()
+
     force_update = self.ForceUpdate()
+
     collide_step = self.CollideSC()
     collide_step_T = self.Collide_T()
     bc_update_T = self.ApplyBC()
@@ -382,31 +387,33 @@ class Domain():
     # run solver
     sess.run(assign_step)
     sess.run(assign_step_T)
+
     sess.run(initialize_step)
     sess.run(initialize_step_T)
-    sess.run(force_update)
-    sess.run(stream_step)
-    sess.run(update_moments_step)
-    sess.run(stream_step_T)
 
-    num_steps = int(Tf/self.dt)
+
+    sess.run(update_moments_step)
+    sess.run(update_moments_T_step)
+
+    num_steps = int(Tf/self.dt_real)
 
     self.ApplyBC()
     #the status bar initializer
     for i in tqdm(range(num_steps)):
-      if int(self.time/save_interval) > int((self.time-self.dt)/save_interval):
+      if int(self.step_count % save_interval) == 0 :
         save_step(self, sess)
-      # sess.run(setup_step)
-      sess.run(force_update)
+      sess.run(setup_step)
+      # sess.run(force_update)
       sess.run(collide_step)
       sess.run(collide_step_T)
       sess.run(stream_step)
       sess.run(stream_step_T)
       sess.run(bc_update_T)
       sess.run(update_moments_step)
+      sess.run(update_moments_T_step)
 
-      # sess.run(stream_step_T)
-      self.time += self.dt
+      self.time += self.dt_real
+      self.step_count+=1
 
   def Unroll(self, start_f, num_steps, setup_computation):
     # run solver

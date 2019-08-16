@@ -13,7 +13,7 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [20, 400]
+shape = [100, 200]
 success = video.open('lid_flow2.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
@@ -34,7 +34,7 @@ def make_lid_boundary(shape):
   boundary[:,:,shape[1]-1,:] = 1.0
   return boundary
 
-def make_lid_boundary_T(shape, Tup=60.0, Tdown=1.0):
+def make_lid_boundary_T(shape, Tup=0.5, Tdown=0.51):
 
   #boundaryy upp
   boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
@@ -79,7 +79,7 @@ def lid_init_step(domain, value=0.08):
   initialize_step = tf.group(*[f_step, rho_step, vel_step, force_step])
   return initialize_step
 
-def lid_init_step_T(domain, value=1):
+def lid_init_step_T(domain, value=0.5):
   vel_dir = tf.zeros_like(domain.Vel[0][:, :, :, 0:1])
   vel = tf.concat([vel_dir, vel_dir, vel_dir], axis=3)
   vel_dot_vel = tf.expand_dims(tf.reduce_sum(vel * vel, axis=3), axis=3)
@@ -88,7 +88,7 @@ def lid_init_step_T(domain, value=1):
   geq = tf.reshape(domain.W, [1,1,1,domain.Nneigh])*value * (1.0 + 3.0*vel_dot_c/domain.Cs + 4.5*vel_dot_c*vel_dot_c/(domain.Cs*domain.Cs) - 1.5*vel_dot_vel/(domain.Cs*domain.Cs))
 
 
-  T = (1.0 - domain.boundaryT)*value
+  T = tf.ones_like(1.0-domain.boundary)*value
 
   stream_stepg = domain.g[0].assign(geq)
   T_step = domain.T[0].assign(T)
@@ -96,7 +96,7 @@ def lid_init_step_T(domain, value=1):
   return step
 
 
-def lid_setup_step(domain, value=0.001):
+def lid_setup_step(domain, value=0):
   # inputing top velocity 
   vel = domain.Vel[0]
   vel_out  = vel[:,1:]
@@ -112,10 +112,10 @@ def lid_setup_step(domain, value=0.001):
 
 
 def lid_save_T(domain, sess):
-  frame = sess.run(domain.T[0])
+  frame = sess.run(domain.Rho[0])
   frame = np.sqrt(np.square(frame[0,:,:,0]) )
-  # print(np.max(frame))
-  # print(np.min(frame))
+  print(np.max(frame))
+  print(np.min(frame))
   frame = np.uint8(255 * frame/np.max(frame))
   frame = cv2.applyColorMap(frame, 2)
   video.write(frame)
@@ -130,26 +130,30 @@ def ForceUpdate(self):
 def lid_save_vel(domain, sess):
   frame = sess.run(domain.Vel[0])
   frame = np.sqrt(np.square(frame[0,:,:,0])+ np.square(frame[0,:,:,1]) + np.square(frame[0,:,:,2]))
-  # print(np.max(frame))
-  # print(np.min(frame))
+  print(np.max(frame))
+  print(np.min(frame))
   frame = np.uint8(255 * frame/np.max(frame))
   frame = cv2.applyColorMap(frame, 2)
   video.write(frame)
 
 def run():
   # constants
-  input_vel = 0.001
-  nu = input_vel*(10.0)
+  input_vel = 0.000001
+  nu = 1.004E-4
+  K = 0.143E-5
+  dx = 7.0E-4
+  dt = 1E-3
+  Tf=0.1
   Ndim = shape
   boundary = make_lid_boundary(shape=Ndim)
   boundary_T = make_lid_boundary_T(shape=Ndim)
   boundaryt2 = make_lid_boundaryt2(shape=Ndim)
   # domain
-  domain = dom.Domain("D2Q9", nu, Ndim, boundaryt2,boundaryT=boundaryt2,boundary_T2= boundary_T,les=False)
+  domain = dom.Domain("D2Q9", nu, K, 2.14E-4, Ndim, boundary=boundary,dt=dt,dx=dx,boundaryT=boundaryt2,boundary_T2= boundary_T,les=False)
 
   # make lattice state, boundary and input velocity
   initialize_step = lid_init_step(domain, value=0.08)
-  initialize_step_T = lid_init_step(domain, value=1)
+  initialize_step_T = lid_init_step_T(domain, value=0.5)
   setup_step = lid_setup_step(domain, value=input_vel)
 
 
@@ -162,7 +166,7 @@ def run():
   sess.run(init)
 
   # run steps
-  domain.Solve(sess, 2500, initialize_step,initialize_step_T ,setup_step, lid_save_vel, 60)
+  domain.Solve(sess, Tf, initialize_step,initialize_step_T ,setup_step, lid_save_vel, 10)
 
 def main(argv=None):  # pylint: disable=unused-argument
   run()
