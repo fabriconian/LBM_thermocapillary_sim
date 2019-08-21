@@ -34,7 +34,8 @@ def make_lid_boundary(shape):
   boundary[:,:,shape[1]-1,:] = 1.0
   return boundary
 
-def make_lid_boundary_T(shape, Tup=1.0, Tdown=1.0):
+def make_lid_boundary_T(shape, Tup=0.5, Tdown=0.5
+                        ):
 
   #boundaryy upp
   boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
@@ -91,8 +92,9 @@ def lid_init_step_T(domain, value=0.5):
   T = tf.ones_like(1.0-domain.boundary)*value
 
   stream_stepg = domain.g[0].assign(geq)
+  stream_stepg_temp = domain.gtemp[0].assign(geq)
   T_step = domain.T[0].assign(T)
-  step = tf.group(*[stream_stepg, T_step])
+  step = tf.group(*[stream_stepg,stream_stepg_temp, T_step])
   return step
 
 
@@ -112,7 +114,7 @@ def lid_setup_step(domain, value=0):
 
 
 def lid_save_T(domain, sess):
-  frame = sess.run(domain.Rho[0])
+  frame = sess.run(domain.T[0])
   frame = np.sqrt(np.square(frame[0,:,:,0]) )
   print(np.max(frame))
   print(np.min(frame))
@@ -143,18 +145,18 @@ def run():
   K = 0.143E-5
   dx = 7.0E-4
   dt = 1E-4
-  beta= 2.14E-4
+  beta= 2.14E-6
   Tf=1
   Ndim = shape
   boundary = make_lid_boundary(shape=Ndim)
-  boundary_T = make_lid_boundary_T(shape=Ndim)
+  boundary_T = make_lid_boundary_T(shape=Ndim,Tup=0.5, Tdown=0.6)
   boundaryt2 = make_lid_boundaryt2(shape=Ndim)
 
   # domain
   domain = dom.Domain(method="D2Q9",
                       Ndim=Ndim,
                       tauf= 0.53,
-                      taug=1,
+                      taug=1.5,
                       beta=beta,
                       boundary=boundaryt2,
                       dt=dt,

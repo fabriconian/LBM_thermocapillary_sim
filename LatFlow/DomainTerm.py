@@ -284,7 +284,7 @@ class Domain():
         # upper boundary
         g = self.g[0]
         g_inn = g[:, 1:-1, 1:-1, :]
-        g = self.gtemp[0]
+        # g = self.gtemp[0]
         # update upper wall
         if self.boundaryT2[0].type == 'CT':
             gup = g[:, :1, :, :]
@@ -404,12 +404,12 @@ class Domain():
         g_zero = tf.constant(np_f_zeros)
         g_zero = g_zero + self.W * self.Tref
         if not graph_unroll:
-            assign_step = self.F[0].assign(g_zero)
-            assign_step_temp = self.Ftemp[0].assign(g_zero)
+            assign_step = self.g[0].assign(g_zero)
+            assign_step_temp = self.gtemp[0].assign(g_zero)
             return tf.group(*[assign_step, assign_step_temp])
         else:
-            self.F[0].assign(g_zero)
-            self.Ftemp[0].assign(g_zero)
+            self.g[0].assign(g_zero)
+            self.gtemp[0].assign(g_zero)
 
     def Solve(self,
               sess,
@@ -456,17 +456,17 @@ class Domain():
         for i in tqdm(range(num_steps)):
             if int(self.step_count % save_interval) == 0:
                 save_step(self, sess)
-            sess.run(setup_step)
+            # sess.run(setup_step)
             # sess.run(force_update)
             sess.run(collide_step)
             sess.run(collide_step_T)
             sess.run(stream_step)
             sess.run(stream_step_T)
-            sess.run(bc_update_T)
+            g = sess.run(bc_update_T)
 
             sess.run(update_moments_step)
-            sess.run(update_moments_T_step)
-
+            tt = sess.run(update_moments_T_step)
+            # print('\n',tt[0,:,:,0])
             self.time += self.dt_real
             self.step_count += 1
 
