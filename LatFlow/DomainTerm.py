@@ -6,7 +6,7 @@ import cv2
 from LatFlow.utils import *
 import time
 from tqdm import *
-
+from matplotlib import pyplot as plt
 import LatFlow.D2Q9 as D2Q9
 
 class BoundaryT():
@@ -417,6 +417,7 @@ class Domain():
               initialize_step,
               initialize_step_T,
               setup_step,
+              force_update,
               save_step,
               save_interval):
 
@@ -430,7 +431,7 @@ class Domain():
         update_moments_step = self.MomentsUpdate()
         update_moments_T_step = self.MomentsUpdate_T()
 
-        force_update = self.ForceUpdate()
+        # force_update = self.ForceUpdate()
 
         collide_step = self.CollideSC()
         collide_step_T = self.Collide_T()
@@ -450,22 +451,22 @@ class Domain():
         sess.run(update_moments_T_step)
 
         num_steps = int(Tf / self.dt_real)
-
-
+        # save_step(self, sess)
+        # plt.show()
         # the status bar initializer
         for i in tqdm(range(num_steps)):
             if int(self.step_count % save_interval) == 0:
                 save_step(self, sess)
             # sess.run(setup_step)
-            # sess.run(force_update)
+            sess.run(force_update)
             sess.run(collide_step)
             sess.run(collide_step_T)
             sess.run(stream_step)
             sess.run(stream_step_T)
-            g = sess.run(bc_update_T)
+            sess.run(bc_update_T)
 
             sess.run(update_moments_step)
-            tt = sess.run(update_moments_T_step)
+            sess.run(update_moments_T_step)
             # print('\n',tt[0,:,:,0])
             self.time += self.dt_real
             self.step_count += 1

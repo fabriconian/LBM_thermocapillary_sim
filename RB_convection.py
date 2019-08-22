@@ -6,6 +6,8 @@ import tensorflow as tf
 import math 
 import cv2
 
+from matplotlib import pyplot as plt
+
 import LatFlow.DomainTerm as dom
 from   LatFlow.utils  import *
 
@@ -13,8 +15,8 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [100, 100]
-success = video.open('rb.mov', fourcc, 30, (shape[1], shape[0]), True)
+shape = [100, 300]
+success = video.open('some_videos/rb4_T2.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -34,8 +36,7 @@ def make_lid_boundary(shape):
   boundary[:,:,shape[1]-1,:] = 1.0
   return boundary
 
-def make_lid_boundary_T(shape, Tup=0.5, Tdown=0.5
-                        ):
+def make_lid_boundary_T(shape, Tup=0.4, Tdown=0.6):
 
   #boundaryy upp
   boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
@@ -115,48 +116,55 @@ def lid_setup_step(domain, value=0):
 
 def lid_save_T(domain, sess):
   frame = sess.run(domain.T[0])
-  frame = np.sqrt(np.square(frame[0,:,:,0]) )
-  print(np.max(frame))
-  print(np.min(frame))
-  frame = np.uint8(255 * frame/np.max(frame))
-  frame = cv2.applyColorMap(frame, 2)
+  frame = np.sqrt(np.square(frame[0, :, :, 0]))
+
+  # print('\n', np.max(frame), '\t', np.min(frame))
+  frame = np.uint8(255 * (frame-np.min(frame)) / (np.max(frame)-np.min(frame)))
+  frame = cv2.applyColorMap(frame, cv2.COLORMAP_HOT, 2)
   video.write(frame)
 
 
-def ForceUpdate(self):
-    force = tf.concat(values=[(-0.0001 * (self.T[0] - tf.ones_like(self.T[0]) * self.Tref))
-      , tf.zeros_like(self.T[0]), tf.zeros_like(self.T[0])], axis=3)
-    update = self.BForce[0].assign(force)
-    return update
 
 def lid_save_vel(domain, sess):
   frame = sess.run(domain.Vel[0])
   frame = np.sqrt(np.square(frame[0,:,:,0])+ np.square(frame[0,:,:,1]) + np.square(frame[0,:,:,2]))
-  print(np.max(frame))
-  print(np.min(frame))
+  # print('\n',np.max(frame),'\t',np.min(frame))
+
+
   frame = np.uint8(255 * frame/np.max(frame))
-  frame = cv2.applyColorMap(frame, 2)
+  frame = cv2.applyColorMap(frame, cv2.COLORMAP_RAINBOW, 2)
+
   video.write(frame)
+
+def ForceUpdate(domain,Tref):
+    g = 9.8 * domain.dt_real * domain.dt_real / domain.dx_real
+    # Tref = domain.Tref
+    force = tf.concat(values=[tf.zeros_like(domain.T[0]), ( -domain.beta * g * (domain.T[0] -  Tref)),
+                              tf.zeros_like(domain.T[0])], axis=3)
+    update = domain.BForce[0].assign(force)
+    return update
+
 
 def run():
   # constants
-  input_vel = 0.00
+  input_vel = 0.001
   nu = 1.004E-4
   K = 0.143E-5
   dx = 7.0E-4
   dt = 1E-4
-  beta= 2.14E-6
-  Tf=1
+  beta= 3.00
+  Tf=2.0
+  Tref = 1.1
   Ndim = shape
   boundary = make_lid_boundary(shape=Ndim)
-  boundary_T = make_lid_boundary_T(shape=Ndim,Tup=0.5, Tdown=0.6)
+  boundary_T = make_lid_boundary_T(shape=Ndim,Tup=0.2, Tdown=0.3)
   boundaryt2 = make_lid_boundaryt2(shape=Ndim)
 
   # domain
   domain = dom.Domain(method="D2Q9",
                       Ndim=Ndim,
                       tauf= 0.53,
-                      taug=1.5,
+                      taug=0.9,
                       beta=beta,
                       boundary=boundaryt2,
                       dt=dt,
@@ -166,9 +174,9 @@ def run():
 
   # make lattice state, boundary and input velocity
   initialize_step = lid_init_step(domain, value=0.08)
-  initialize_step_T = lid_init_step_T(domain, value=0.5)
+  initialize_step_T = lid_init_step_T(domain, value=Tref)
   setup_step = lid_setup_step(domain, value=input_vel)
-
+  force_update = ForceUpdate(domain,Tref=Tref)
 
   # init things
   init = tf.global_variables_initializer()
@@ -179,7 +187,7 @@ def run():
   sess.run(init)
 
   # run steps
-  domain.Solve(sess, Tf, initialize_step,initialize_step_T ,setup_step, lid_save_T, 60)
+  domain.Solve(sess, Tf, initialize_step, initialize_step_T, setup_step, force_update, lid_save_T, 30)
 
 def main(argv=None):  # pylint: disable=unused-argument
   run()
