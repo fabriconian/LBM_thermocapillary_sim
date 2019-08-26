@@ -8,7 +8,7 @@ import cv2
 
 from matplotlib import pyplot as plt
 
-import LatFlow.DomainTerm as dom
+import LatFlow.DomainTherm as dom
 from   LatFlow.utils  import *
 
 # video init
@@ -16,7 +16,7 @@ fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
 shape = [100, 300]
-success = video.open('some_videos/rb4_T2.mov', fourcc, 30, (shape[1], shape[0]), True)
+success = video.open('some_videos/rb4_T3.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -157,7 +157,7 @@ def run():
   Tref = 1.1
   Ndim = shape
   boundary = make_lid_boundary(shape=Ndim)
-  boundary_T = make_lid_boundary_T(shape=Ndim,Tup=0.2, Tdown=0.3)
+  boundary_T = make_lid_boundary_T(shape=Ndim,Tup=0.2, Tdown=0.4)
   boundaryt2 = make_lid_boundaryt2(shape=Ndim)
 
   # domain
