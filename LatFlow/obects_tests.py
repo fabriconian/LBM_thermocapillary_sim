@@ -3,7 +3,7 @@ import time
 
 import numpy as np
 import tensorflow as tf
-import math 
+import math
 import cv2
 
 from matplotlib import pyplot as plt
@@ -15,25 +15,18 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [100, 300]
+shape = [40, 40]
 success = video.open('some_videos/rb4_T3.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
 
 
-def make_lid_boundaryt2(shape):
+def make_lid_boundaryt(shape):
   boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
   boundary[:,:,0,:] = 1.0
   boundary[:,shape[0]-1,:,:] = 1.0
   boundary[:,:,shape[1]-1,:] = 1.0
   boundary[:, 0,:, :] = 1.0
-  return boundary
-
-def make_lid_boundary(shape):
-  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
-  boundary[:,:,0,:] = 1.0
-  boundary[:,shape[0]-1,:,:] = 1.0
-  boundary[:,:,shape[1]-1,:] = 1.0
   return boundary
 
 def make_lid_boundary_T(shape, Tup=0.4, Tdown=0.6):
@@ -89,7 +82,6 @@ def lid_init_step_T(domain, value=0.5):
 
   geq = tf.reshape(domain.W, [1,1,1,domain.Nneigh])*value * (1.0 + 3.0*vel_dot_c/domain.Cs + 4.5*vel_dot_c*vel_dot_c/(domain.Cs*domain.Cs) - 1.5*vel_dot_vel/(domain.Cs*domain.Cs))
 
-
   T = tf.ones_like(1.0-domain.boundary)*value
 
   stream_stepg = domain.g[0].assign(geq)
@@ -97,22 +89,6 @@ def lid_init_step_T(domain, value=0.5):
   T_step = domain.T[0].assign(T)
   step = tf.group(*[stream_stepg,stream_stepg_temp, T_step])
   return step
-
-
-def lid_setup_step(domain, value=0):
-  # inputing top velocity 
-  vel = domain.Vel[0]
-  vel_out  = vel[:,1:]
-  vel_edge = vel[:,:1]
-  vel_edge = tf.split(vel_edge, 3, axis=3)
-  vel_edge[0] = vel_edge[0]+value
-  vel_edge = tf.concat(vel_edge, axis=3)
-  vel = tf.concat([vel_edge,vel_out],axis=1)
-
-  # make steps
-  vel_step = domain.Vel[0].assign(vel)
-  return vel_step
-
 
 def lid_save_T(domain, sess):
   frame = sess.run(domain.T[0])
@@ -122,8 +98,6 @@ def lid_save_T(domain, sess):
   frame = np.uint8(255 * (frame-np.min(frame)) / (np.max(frame)-np.min(frame)))
   frame = cv2.applyColorMap(frame, cv2.COLORMAP_HOT, 2)
   video.write(frame)
-
-
 
 def lid_save_vel(domain, sess):
   frame = sess.run(domain.Vel[0])
@@ -144,6 +118,22 @@ def ForceUpdate(domain,Tref):
     update = domain.BForce[0].assign(force)
     return update
 
+def Create_objects(shape=None,n=10,r=None,R0=np.array([10,10]),V0=np.array([0,0])):
+    if r is None:
+        r = shape[0]/10
+    phi = np.linspace(0.,(2*np.pi*(n-1)/float(n)),num=n)
+    vertx = r * np.cos(phi)
+    verty = - r * np.sin(phi)
+    vertices = np.ones([verty.shape[0],2])
+    vertices[:,0] = vertx
+    vertices[:,1] = verty
+    objects = [dom.Object(
+        vertices=vertices,
+        rc=R0,
+        vc=V0
+
+    )]
+    return objects
 
 def run():
   # constants
@@ -156,16 +146,16 @@ def run():
   Tf=2.0
   Tref = 1.1
   Ndim = shape
-  boundary = make_lid_boundary(shape=Ndim)
   boundary_T = make_lid_boundary_T(shape=Ndim,Tup=0.2, Tdown=0.4)
-  boundaryt2 = make_lid_boundaryt2(shape=Ndim)
+  boundaryt2 = make_lid_boundaryt(shape=Ndim)
+  objects = Create_objects(Ndim,n=80,r=10)
 
   # domain
   domain = dom.Domain(method="D2Q9",
                       Ndim=Ndim,
                       tauf= 0.53,
                       taug=0.9,
-                      beta=beta,
+                      objects=objects,
                       boundary=boundaryt2,
                       dt=dt,
                       dx=dx,
@@ -173,9 +163,9 @@ def run():
                       les=False)
 
   # make lattice state, boundary and input velocity
+
   initialize_step = lid_init_step(domain, value=0.08)
   initialize_step_T = lid_init_step_T(domain, value=Tref)
-  setup_step = lid_setup_step(domain, value=input_vel)
   force_update = ForceUpdate(domain,Tref=Tref)
 
   # init things
@@ -187,7 +177,7 @@ def run():
   sess.run(init)
 
   # run steps
-  domain.Solve(sess, Tf, initialize_step, initialize_step_T,  force_update, lid_save_T,setup_step, 30)
+  domain.Solve(sess, Tf, initialize_step, initialize_step_T, force_update, lid_save_T, 30)
 
 def main(argv=None):  # pylint: disable=unused-argument
   run()

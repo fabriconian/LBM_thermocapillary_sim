@@ -6,6 +6,19 @@ from tqdm import *
 from matplotlib import pyplot as plt
 import LatFlow.D2Q9 as D2Q9
 
+class Object():
+    def __init__(self,
+                 vertices,
+                 rc=np.array([0,0]),
+                 vc=np.array([0,0]),
+                ):
+        self.rc = rc
+        self.vc = vc
+        self.vertices = vertices
+
+    def Updait(self,dt):
+        self.rc +=self.vc*dt
+
 class BoundaryT():
     def __init__(self,
                  boundary,
@@ -29,7 +42,7 @@ class Domain():
                  method,
                  boundary,
                  boundary_T,
-                 beta,
+                 objects,
                  nu=None,
                  K=None,
                  tauf=None,
@@ -67,9 +80,8 @@ class Domain():
 
         self.Ncells = np.prod(np.array(Ndim))
         self.boundary = tf.constant(boundary)
-        # self.boundaryT = tf.constant(np.array([b.boundary for b in boundaryT]))
-        # self.boundaryT = tf.constant(boundaryT)
         self.boundaryT2 = boundary_T
+        self.objects  = objects
         self.Nl = len(nu)
         self.tau = []
         self.taug = []
@@ -91,7 +103,6 @@ class Domain():
         self.IsSolid = []
         self.Tref = 0.5
         self.step_count = 0
-        self.beta = beta
 
         for i in range(len(nu)):
             if tauf is None:
@@ -328,12 +339,6 @@ class Domain():
         return updbc_step
 
 
-    def ForceUpdate(self):
-        g = 9.8 * self.dt_real * self.dt_real / self.dx_real
-        force = tf.concat(values=[(20.0 * self.beta * g * (self.T[0] - tf.ones_like(self.T[0]) * self.Tref))
-            , tf.zeros_like(self.T[0]), tf.zeros_like(self.T[0])], axis=3)
-        update = self.BForce[0].assign(force)
-        return update
 
     def MomentsUpdate_T(self, graph_unroll=False):
         g_pad = self.g[0]
@@ -413,10 +418,10 @@ class Domain():
               Tf,  # final time
               initialize_step,
               initialize_step_T,
-              setup_step,
               force_update,
               save_step,
-              save_interval):
+              setup_step=None,
+              save_interval=25):
 
         # make steps
         assign_step = self.Initialize()

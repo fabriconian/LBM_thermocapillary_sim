@@ -2,15 +2,17 @@ from LatFlow.utils import *
 import time
 
 vertices = np.array([
-    [5,12],
-    [8,18],
-    [13,14],
-    [11,6],
-    [4,6],
+    [1,10],
+    [10,19],
+    [19,10],
+    [10,1],
 ])
+vertices = np.random.uniform(0,10,[2000,2])
 t = time.time()
-polygon_array = create_polygon_vek([2000,2000], vertices)
+polygon_array = create_polygon_vek([200,200], vertices)
 print(time.time() - t,'\n')
 t = time.time()
-polygon_array2 = create_polygon([2000,2000], vertices)
+polygon_array2 = create_polygon([200,200], vertices)
 print(time.time() - t,'\n')
+
+polygon_array = create_polygon_vek([20,20], vertices)

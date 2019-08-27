@@ -40,49 +40,6 @@ def grad(field):
                          (fyp[1:-1,:] + fym[1:-1,:]) / 2, fyp[-1:,:] + fym[ -1:,:]]),-1)
   return tf.concat(axis=2,values=[fy,fx])
 
-
-def check_vector(p1, p2, base_array):
-    """
-    Uses the line defined by p1 and p2 to check array of
-    input indices against interpolated value
-
-    Returns boolean array, with True inside and False outside of shape
-    """
-
-    idxs = np.indices(base_array.shape) # Create 3D array of indices
-    idxs = np.concatenate([p1.shape[0] * [idxs]], axis=0)
-    p1 = p1.astype(float)
-    p2 = p2.astype(float)
-    p1x = (np.ones_like(idxs[:,0]).transpose(2,1,0)*p1[:,0]).transpose(2,1,0)
-    p1y = (np.ones_like(idxs[:, 0]).transpose(2, 1, 0) * p1[:, 1]).transpose(2, 1, 0)
-    p2x = (np.ones_like(idxs[:, 0]).transpose(2, 1, 0) * p2[:, 0]).transpose(2, 1, 0)
-    p2y = (np.ones_like(idxs[:, 0]).transpose(2, 1, 0) * p2[:, 1]).transpose(2, 1, 0)
-
-    # Calculate max column idx for each row idx based on interpolated line between two points
-    max_col_idx = (idxs[:,0] - p1x) / (p2x - p1x) * (p2y - p1y) +  p1y
-    sign = np.sign(p2x - p1x)
-    return idxs[:,1] * sign <= max_col_idx * sign
-
-
-def check(p1, p2, base_array):
-    """
-    Uses the line defined by p1 and p2 to check array of
-    input indices against interpolated value
-
-    Returns boolean array, with True inside and False outside of shape
-    """
-
-    idxs = np.indices(base_array.shape) # Create 3D array of indices
-
-    p1 = p1.astype(float)
-    p2 = p2.astype(float)
-
-    # Calculate max column idx for each row idx based on interpolated line between two points
-    max_col_idx = (idxs[0] - p1[0]) / (p2[0] - p1[0]) * (p2[1] - p1[1]) +  p1[1]
-    sign = np.sign(p2[0] - p1[0])
-    return idxs[1] * sign <= max_col_idx * sign
-
-
 def create_polygon(shape, vertices):
     """
     Creates np.array with dimensions defined by shape
@@ -92,15 +49,9 @@ def create_polygon(shape, vertices):
     fill = np.ones(base_array.shape) * True  # Initialize boolean array defining shape fill
 
     # Create check array for each edge segment, combine into fill array
-    p1 = np.zeros_like(vertices)
-    p2 = np.zeros_like(vertices)
     for k in range(vertices.shape[0]):
         fill = np.all([fill, check(vertices[k-1], vertices[k], base_array)], axis=0)
-        p1[k] = vertices[k-1]
-        p2[k] = vertices[k]
 
-    z = check_vector(p1,p2,base_array)
-    # Set all values inside polygon to one
     base_array[fill] = 1.0
 
     return base_array
@@ -123,3 +74,44 @@ def create_polygon_vek(shape, vertices):
   base_array[fill] = 1.0
 
   return base_array
+
+def check(p1, p2, base_array):
+    """
+    Uses the line defined by p1 and p2 to check array of
+    input indices against interpolated value
+
+    Returns boolean array, with True inside and False outside of shape
+    """
+
+    idxs = np.indices(base_array.shape)  # Create 3D array of indices
+
+    p1 = p1.astype(float)
+    p2 = p2.astype(float)
+
+    # Calculate max column idx for each row idx based on interpolated line between two points
+    max_col_idx = (idxs[0] - p1[0]) / (p2[0] - p1[0]) * (p2[1] - p1[1]) + p1[1]
+    sign = np.sign(p2[0] - p1[0])
+    return idxs[1] * sign <= max_col_idx * sign
+
+def check_vector(p1, p2, base_array):
+    """
+    Uses the line defined by p1 and p2 to check array of
+    input indices against interpolated value
+
+    Returns boolean array, with True inside and False outside of shape
+    """
+
+    idxs = np.indices(base_array.shape)  # Create 3D array of indices
+    idxs = np.concatenate([p1.shape[0] * [idxs]], axis=0)
+    p1 = p1.astype(float)
+    p2 = p2.astype(float)
+    p1x = (np.ones_like(idxs[:, 0]).transpose(2, 1, 0) * p1[:, 0]).transpose(2, 1, 0)
+    p1y = (np.ones_like(idxs[:, 0]).transpose(2, 1, 0) * p1[:, 1]).transpose(2, 1, 0)
+    p2x = (np.ones_like(idxs[:, 0]).transpose(2, 1, 0) * p2[:, 0]).transpose(2, 1, 0)
+    p2y = (np.ones_like(idxs[:, 0]).transpose(2, 1, 0) * p2[:, 1]).transpose(2, 1, 0)
+
+    # Calculate max column idx for each row idx based on interpolated line between two points
+    max_col_idx = (idxs[:, 0] - p1x) / (p2x - p1x) * (p2y - p1y) + p1y
+    sign = np.sign(p2x - p1x)
+    return idxs[:, 1] * sign <= max_col_idx * sign
+
