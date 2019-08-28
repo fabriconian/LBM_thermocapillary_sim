@@ -1,6 +1,6 @@
 
 import cv2
-from LatFlow.utils import *
+from LatFlow_np.utils import *
 import time
 from tqdm import *
 from matplotlib import pyplot as plt
@@ -57,10 +57,10 @@ class Domain():
         if method == "D2Q9":
             self.Nneigh = 9
             self.Dim = 2
-            self.W = tf.reshape(D2Q9.WEIGHTS, (self.Dim + 1) * [1] + [self.Nneigh])
-            self.C = tf.reshape(D2Q9.LVELOC, self.Dim * [1] + [self.Nneigh, 3])
-            self.Cten = tf.expand_dims(tf.concat(axis=0, values=[[[self.C[0, 0]] * self.Ndim[1]] * self.Ndim[0]]), 0)
-            self.Op = tf.reshape(D2Q9.BOUNCE, self.Dim * [1] + [self.Nneigh, self.Nneigh])
+            self.W = np.reshape(D2Q9.WEIGHTS, (self.Dim + 1) * [1] + [self.Nneigh])
+            self.C = np.reshape(D2Q9.LVELOC, self.Dim * [1] + [self.Nneigh, 3])
+            self.Cten = np.expand_dims(np.concat(axis=0, values=[[[self.C[0, 0]] * self.Ndim[1]] * self.Ndim[0]]), 0)
+            self.Op = np.reshape(D2Q9.BOUNCE, self.Dim * [1] + [self.Nneigh, self.Nneigh])
             self.St = D2Q9.STREAM
 
         if nu is not list:
@@ -79,7 +79,7 @@ class Domain():
         self.Sc = 0.17
 
         self.Ncells = np.prod(np.array(Ndim))
-        self.boundary = tf.constant(boundary)
+        self.boundary = boundary
         self.boundaryT2 = boundary_T
         self.objects  = objects
         self.Nl = len(nu)
@@ -121,12 +121,12 @@ class Domain():
 
             self.Psi.append(4.0)
 
-            self.F.append(tf.Variable(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32)))
-            self.Ftemp.append(tf.Variable(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32)))
-            self.g.append(tf.Variable(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32)))
-            self.gtemp.append(tf.Variable(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32)))
+            self.F.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32))
+            self.Ftemp.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32))
+            self.g.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32))
+            self.gtemp.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32))
 
-            self.Vel.append(tf.Variable(np.zeros([1] + Ndim + [3], dtype=np.float32)))
+            self.Vel.append(np.zeros([1] + Ndim + [3], dtype=np.float32))
             self.T.append(tf.Variable(np.zeros([1] + Ndim + [1], dtype=np.float32)))
 
             self.BForce.append(tf.Variable(np.zeros([1] + Ndim + [3], dtype=np.float32)))

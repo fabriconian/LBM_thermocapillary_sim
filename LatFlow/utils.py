@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from skimage import feature
 
 def simple_conv(x, k):
   """A simplified 2D or 3D convolution operation"""
@@ -115,3 +116,5 @@ def check_vector(p1, p2, base_array):
     sign = np.sign(p2x - p1x)
     return idxs[:, 1] * sign <= max_col_idx * sign
 
+def get_edge(field,sigma = 5):
+    return feature.canny(field,sigma)
