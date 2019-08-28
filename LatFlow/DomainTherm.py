@@ -42,7 +42,7 @@ class Domain():
                  method,
                  boundary,
                  boundary_T,
-                 objects,
+                 objects=None,
                  nu=None,
                  K=None,
                  tauf=None,
