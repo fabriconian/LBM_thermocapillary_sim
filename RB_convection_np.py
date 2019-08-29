@@ -14,7 +14,7 @@ from   LatFlow_np.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [256, 256]
+shape = [128, 256]
 success = video.open('some_videos/rb4_T3.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 
@@ -60,8 +60,8 @@ def make_lid_boundary_T(shape, Tup=0.4, Tdown=0.6):
 
 def lid_init_step(domain, value=0.08):
   vel = np.zeros_like(domain.Vel[0])
-  vel_dot_vel = np.expand_dims(np.reduce_sum(vel * vel, axis=3), axis=3)
-  vel_dot_c = np.reduce_sum(np.expand_dims(vel, axis=3) * np.reshape(domain.C, [1,1,1,domain.Nneigh,3]), axis=4)
+  vel_dot_vel = np.expand_dims(np.sum(vel * vel, axis=3), axis=3)
+  vel_dot_c = np.sum(np.expand_dims(vel, axis=3) * np.reshape(domain.C, [1,1,1,domain.Nneigh,3]), axis=4)
   feq = np.reshape(domain.W, [1,1,1,domain.Nneigh]) * (1.0 + 3.0*vel_dot_c/domain.Cs + 4.5*vel_dot_c*vel_dot_c/
                                                        (domain.Cs*domain.Cs) - 1.5*vel_dot_vel/(domain.Cs*domain.Cs))
 
@@ -79,8 +79,8 @@ def lid_init_step(domain, value=0.08):
 
 def lid_init_step_T(domain, value=0.5):
   vel = np.zeros_like(domain.Vel[0])
-  vel_dot_vel = np.expand_dims(np.reduce_sum(vel * vel, axis=3), axis=3)
-  vel_dot_c = np.reduce_sum(np.expand_dims(vel, axis=3) * np.reshape(domain.C, [1, 1, 1, domain.Nneigh, 3]), axis=4)
+  vel_dot_vel = np.expand_dims(np.sum(vel * vel, axis=3), axis=3)
+  vel_dot_c = np.sum(np.expand_dims(vel, axis=3) * np.reshape(domain.C, [1, 1, 1, domain.Nneigh, 3]), axis=4)
 
   geq = np.reshape(domain.W, [1,1,1,domain.Nneigh])*value * (1.0 + 3.0*vel_dot_c/domain.Cs + 4.5*vel_dot_c*vel_dot_c/
                                                         (domain.Cs*domain.Cs) - 1.5*vel_dot_vel/(domain.Cs*domain.Cs))

@@ -4,7 +4,7 @@ from LatFlow_np.utils import *
 import time
 from tqdm import *
 from matplotlib import pyplot as plt
-import LatFlow.D2Q9 as D2Q9
+import LatFlow_np.D2Q9 as D2Q9
 
 class Object():
     def __init__(self,
@@ -59,7 +59,7 @@ class Domain():
             self.Dim = 2
             self.W = np.reshape(D2Q9.WEIGHTS, (self.Dim + 1) * [1] + [self.Nneigh])
             self.C = np.reshape(D2Q9.LVELOC, self.Dim * [1] + [self.Nneigh, 3])
-            self.Cten = np.expand_dims(np.concat(axis=0, values=[[[self.C[0, 0]] * self.Ndim[1]] * self.Ndim[0]]), 0)
+            self.Cten = np.expand_dims(np.concatenate(([[[self.C[0, 0]] * self.Ndim[1]] * self.Ndim[0]]),axis=0),0)
             self.Op = np.reshape(D2Q9.BOUNCE, self.Dim * [1] + [self.Nneigh, self.Nneigh])
             self.St = D2Q9.STREAM
 
@@ -78,7 +78,7 @@ class Domain():
         self.Step = 1
         self.Sc = 0.17
 
-        self.Ncells = np.prod(np.array(Ndim))
+        # self.Ncells = np.prod(np.array(Ndim))
         self.boundary = boundary
         self.boundaryT2 = boundary_T
         self.objects  = objects
@@ -245,7 +245,7 @@ class Domain():
                      - gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 3:4] + gup[:, :, :, 4:5] + gup[:, :, :,7:8]\
                      + gup[:, :,:, 8:]) \
                     / (self.W[:, :, :, 2:3] + self.W[:, :, :, 5:6] + self.W[:, :, :, 6:7])
-            g[:, :1, :, :] = np.concatenate(values=[gup[:, :, :, 0:2], gwall * self.W[:, :, :, 2:3], \
+            g[:, :1, :, :] = np.concatenate([gup[:, :, :, 0:2], gwall * self.W[:, :, :, 2:3], \
                                      gup[:, :, :, 3:5], gwall * self.W[:, :, :, 5:6], \
                                      gwall * self.W[:, :, :, 6:7], gup[:, :, :, 7:]], axis=-1)
         # update down wall
@@ -255,7 +255,7 @@ class Domain():
                      - gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 2:3] + gup[:, :, :, 3:4] + gup[:, :, :,5:6]\
                      + gup[:, :, :, 6:7]) \
                     / (self.W[:, :, :, 4:5] + self.W[:, :, :, 7:8] + self.W[:, :, :, 8:])
-            g[:, -2:-1, :, :] = np.concatenate(values=[gup[:, :, :, 0:4], gwall * self.W[:, :, :, 4:5], \
+            g[:, -2:-1, :, :] = np.concatenate([gup[:, :, :, 0:4], gwall * self.W[:, :, :, 4:5], \
                                       gup[:, :, :, 5:7], gwall * self.W[:, :, :, 7:8], \
                                       gwall * self.W[:, :, :, 8:]], axis=-1)
 
@@ -264,7 +264,7 @@ class Domain():
             gup = g[:, :, -2:-1, :]
             gwall = (gup[:, :, :, 1:2] + gup[:, :, :, 5:6] + gup[:, :, :, 8:]) \
                     / (self.W[:, :, :, 3:4] + self.W[:, :, :, 6:7] + self.W[:, :, :, 7:8])
-            g[:, :, -2:-1, :] = np.concatenate(values=[gup[:, :, :, 0:3], gwall * self.W[:, :, :, 3:4], \
+            g[:, :, -2:-1, :] = np.concatenate([gup[:, :, :, 0:3], gwall * self.W[:, :, :, 3:4], \
                                        gup[:, :, :, 4:6], gwall * self.W[:, :, :, 6:7], \
                                        gwall * self.W[:, :, :, 7:8], gup[:, :, :, 8:]], axis=-1)
 
@@ -273,7 +273,7 @@ class Domain():
             gup = g[:, :, :1, :]
             gwall = (gup[:, :, :, 3:4] + gup[:, :, :, 6:7] + gup[:, :, :, 7:8]) \
                     / (self.W[:, :, :, 1:2] + self.W[:, :, :, 5:6] + self.W[:, :, :, 8:])
-            g[:, :, :1, :] = np.concatenate(values=[gup[:, :, :, 0:1], gwall * self.W[:, :, :, 1:2], \
+            g[:, :, :1, :] = np.concatenate([gup[:, :, :, 0:1], gwall * self.W[:, :, :, 1:2], \
                                       gup[:, :, :, 2:5], gwall * self.W[:, :, :, 5:6], \
                                        gup[:, :, :, 6:8],gwall * self.W[:, :, :, 8:]], axis=-1)
 
@@ -284,7 +284,7 @@ class Domain():
 
     def MomentsUpdate_T(self, graph_unroll=False):
         g_pad = self.g[0]
-        T = np.expand_dims(np.reduce_sum(g_pad, self.Dim + 1), self.Dim + 1)
+        T = np.expand_dims(np.sum(g_pad, self.Dim + 1), self.Dim + 1)
         if not graph_unroll:
             # create steps
             self.T[0] = T
@@ -295,7 +295,7 @@ class Domain():
     def MomentsUpdate(self, graph_unroll=False):
         f_pad = self.F[0]
         Force = self.BForce[0]
-        Rho = np.expand_dims(np.reduce_sum(f_pad, self.Dim + 1), self.Dim + 1)
+        Rho = np.expand_dims(np.sum(f_pad, self.Dim + 1), self.Dim + 1)
         Vel = simple_conv(f_pad, self.C)
         Vel = Vel / (self.Cs * Rho) + Force / 2.0 / Rho
         if not graph_unroll:
