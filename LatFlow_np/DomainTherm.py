@@ -159,7 +159,7 @@ class Domain():
 
         # calc v dots
 
-        vel_dot_vel = np.expand_dims(np.reduce_sum(vel * vel, axis=self.Dim + 1), axis=self.Dim + 1)
+        vel_dot_vel = np.expand_dims(np.sum(vel * vel, axis=self.Dim + 1), axis=self.Dim + 1)
         if self.Dim == 2:
             vel_dot_c = simple_conv(vel, np.transpose(self.C, [0, 1, 3, 2]))
         else:
@@ -167,9 +167,9 @@ class Domain():
 
         f_dot_c = simple_conv(force, np.transpose(self.C, [0, 1, 3, 2]))
 
-        uten = np.reshape(np.concatenate(axis=0, values=[[self.Vel[0]] * int(self.Nneigh)]), shape=self.Cten.shape)
-        ften = np.reshape(np.concatenate(axis=0, values=[[force] * int(self.Nneigh)]), shape=self.Cten.shape)
-        ften = 3.0 * self.W * np.reduce_sum(ften * (self.Cten - uten), axis=-1) / self.Cs ** 2
+        uten = np.reshape(np.concatenate([[self.Vel[0]] * int(self.Nneigh)],axis=0), newshape=self.Cten.shape)
+        ften = np.reshape(np.concatenate([[force] * int(self.Nneigh)],axis=0), newshape=self.Cten.shape)
+        ften = 3.0 * self.W * np.sum(ften * (self.Cten - uten), axis=-1) / self.Cs ** 2
 
         # calc Feq
         Feq = self.W * rho * (1.0 + 3.0 * vel_dot_c / self.Cs ** 2 + 4.5 * vel_dot_c * vel_dot_c / (
@@ -179,7 +179,7 @@ class Domain():
         # collision calc
         NonEq = f - Feq
         if self.les:
-            Q = np.expand_dims(np.reduce_sum(NonEq * NonEq * self.EEk, axis=self.Dim + 1), axis=self.Dim + 1)
+            Q = np.expand_dims(np.sum(NonEq * NonEq * self.EEk, axis=self.Dim + 1), axis=self.Dim + 1)
             Q = np.sqrt(2.0 * Q)
             tau = 0.5 * (self.tau[0] + np.sqrt(self.tau[0] * self.tau[0] + 6.0 * Q * self.Sc / rho))
         else:
@@ -208,7 +208,7 @@ class Domain():
         T = self.T[0]
 
         # calc v dots
-        vel_dot_vel = np.expand_dims(np.reduce_sum(vel * vel, axis=self.Dim + 1), axis=self.Dim + 1)
+        vel_dot_vel = np.expand_dims(np.sum(vel * vel, axis=self.Dim + 1), axis=self.Dim + 1)
         if self.Dim == 2:
             vel_dot_c = simple_conv(vel, np.transpose(self.C, [0, 1, 3, 2]))
         else:
@@ -363,7 +363,7 @@ class Domain():
               save_interval=25):
 
         # make steps
-        bc_update_T = self.ApplyBC()
+
 
         # run solver
         self.Initialize()
@@ -393,7 +393,7 @@ class Domain():
 
             self.StreamSC()
             self.Stream_T()
-            sess.run(bc_update_T)
+            self.ApplyBC()
 
             self.MomentsUpdate()
             self.MomentsUpdate_T()

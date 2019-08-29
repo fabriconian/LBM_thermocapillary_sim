@@ -118,8 +118,8 @@ def lid_save_vel(domain):
 def ForceUpdate(domain,Tref,beta):
     g = 9.8 * domain.dt_real * domain.dt_real / domain.dx_real
     # Tref = domain.Tref
-    force = np.zeros_like[domain.Vel[0]]
-    force[:,:,:,1] = -beta * g * (domain.T[0] -  Tref)
+    force = np.zeros_like(domain.Vel[0])
+    force[0,:,:,1] = -beta * g * (domain.T[0][:,:,:,0] -  Tref)
     domain.BForce[0] = force
     return domain.BForce[0]
 
