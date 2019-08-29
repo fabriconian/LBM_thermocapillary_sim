@@ -127,24 +127,24 @@ class Domain():
             self.gtemp.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32))
 
             self.Vel.append(np.zeros([1] + Ndim + [3], dtype=np.float32))
-            self.T.append(tf.Variable(np.zeros([1] + Ndim + [1], dtype=np.float32)))
+            self.T.append(np.zeros([1] + Ndim + [1], dtype=np.float32))
 
-            self.BForce.append(tf.Variable(np.zeros([1] + Ndim + [3], dtype=np.float32)))
-            self.QSource.append(tf.Variable(np.zeros([1] + Ndim + [1], dtype=np.float32)))
-            self.Rho.append(tf.Variable(np.zeros([1] + Ndim + [1], dtype=np.float32)))
-            self.IsSolid.append(tf.Variable(np.zeros([1] + Ndim + [1], dtype=np.float32)))
+            self.BForce.append(np.zeros([1] + Ndim + [3], dtype=np.float32))
+            self.QSource.append(np.zeros([1] + Ndim + [1], dtype=np.float32))
+            self.Rho.append(np.zeros([1] + Ndim + [1], dtype=np.float32))
+            self.IsSolid.append(np.zeros([1] + Ndim + [1], dtype=np.float32))
 
-        self.EEk = tf.zeros(self.Dim * [1] + [self.Nneigh])
+        self.EEk = np.zeros(self.Dim * [1] + [self.Nneigh])
         for n in range(3):
             for m in range(3):
                 if self.Dim == 2:
-                    self.EEk = self.EEk + tf.abs(self.C[:, :, :, n] * self.C[:, :, :, m])
+                    self.EEk = self.EEk + np.abs(self.C[:, :, :, n] * self.C[:, :, :, m])
                 elif self.Dim == 3:
-                    self.EEk = self.EEk + tf.abs(self.C[:, :, :, :, n] * self.C[:, :, :, :, m])
+                    self.EEk = self.EEk + np.abs(self.C[:, :, :, :, n] * self.C[:, :, :, :, m])
 
     def CollideSC(self, graph_unroll=False):
         # boundary bounce piece
-        f_boundary = tf.multiply(self.F[0], self.boundary)
+        f_boundary = np.multiply(self.F[0], self.boundary)
         f_boundary = simple_conv(f_boundary, self.Op)
          # to stop dividing by zero
 
@@ -159,17 +159,17 @@ class Domain():
 
         # calc v dots
 
-        vel_dot_vel = tf.expand_dims(tf.reduce_sum(vel * vel, axis=self.Dim + 1), axis=self.Dim + 1)
+        vel_dot_vel = np.expand_dims(np.reduce_sum(vel * vel, axis=self.Dim + 1), axis=self.Dim + 1)
         if self.Dim == 2:
-            vel_dot_c = simple_conv(vel, tf.transpose(self.C, [0, 1, 3, 2]))
+            vel_dot_c = simple_conv(vel, np.transpose(self.C, [0, 1, 3, 2]))
         else:
-            vel_dot_c = simple_conv(vel, tf.transpose(self.C, [0, 1, 2, 4, 3]))
+            vel_dot_c = simple_conv(vel, np.transpose(self.C, [0, 1, 2, 4, 3]))
 
-        f_dot_c = simple_conv(force, tf.transpose(self.C, [0, 1, 3, 2]))
+        f_dot_c = simple_conv(force, np.transpose(self.C, [0, 1, 3, 2]))
 
-        uten = tf.reshape(tf.concat(axis=0, values=[[self.Vel[0]] * int(self.Nneigh)]), shape=tf.shape(self.Cten))
-        ften = tf.reshape(tf.concat(axis=0, values=[[force] * int(self.Nneigh)]), shape=tf.shape(self.Cten))
-        ften = 3.0 * self.W * tf.reduce_sum(ften * (self.Cten - uten), axis=-1) / self.Cs ** 2
+        uten = np.reshape(np.concatenate(axis=0, values=[[self.Vel[0]] * int(self.Nneigh)]), shape=self.Cten.shape)
+        ften = np.reshape(np.concatenate(axis=0, values=[[force] * int(self.Nneigh)]), shape=self.Cten.shape)
+        ften = 3.0 * self.W * np.reduce_sum(ften * (self.Cten - uten), axis=-1) / self.Cs ** 2
 
         # calc Feq
         Feq = self.W * rho * (1.0 + 3.0 * vel_dot_c / self.Cs ** 2 + 4.5 * vel_dot_c * vel_dot_c / (
@@ -179,21 +179,21 @@ class Domain():
         # collision calc
         NonEq = f - Feq
         if self.les:
-            Q = tf.expand_dims(tf.reduce_sum(NonEq * NonEq * self.EEk, axis=self.Dim + 1), axis=self.Dim + 1)
-            Q = tf.sqrt(2.0 * Q)
-            tau = 0.5 * (self.tau[0] + tf.sqrt(self.tau[0] * self.tau[0] + 6.0 * Q * self.Sc / rho))
+            Q = np.expand_dims(np.reduce_sum(NonEq * NonEq * self.EEk, axis=self.Dim + 1), axis=self.Dim + 1)
+            Q = np.sqrt(2.0 * Q)
+            tau = 0.5 * (self.tau[0] + np.sqrt(self.tau[0] * self.tau[0] + 6.0 * Q * self.Sc / rho))
         else:
             tau = self.tau[0]
         f = f - NonEq / tau + Fi * (1 - 1 / 2 / tau)
 
         # combine boundary and no boundary values
-        f_no_boundary = tf.multiply(f, (1.0 - self.boundary))
+        f_no_boundary = np.multiply(f, (1.0 - self.boundary))
         f = f_no_boundary + f_boundary
 
         if not graph_unroll:
             # make step
-            collid_step = self.Ftemp[0].assign(f)
-            return collid_step
+            self.Ftemp[0] = f
+            return self.Ftemp[0]
         else:
             # put computation back in graph
             self.Ftemp[0] = f
@@ -208,11 +208,11 @@ class Domain():
         T = self.T[0]
 
         # calc v dots
-        vel_dot_vel = tf.expand_dims(tf.reduce_sum(vel * vel, axis=self.Dim + 1), axis=self.Dim + 1)
+        vel_dot_vel = np.expand_dims(np.reduce_sum(vel * vel, axis=self.Dim + 1), axis=self.Dim + 1)
         if self.Dim == 2:
-            vel_dot_c = simple_conv(vel, tf.transpose(self.C, [0, 1, 3, 2]))
+            vel_dot_c = simple_conv(vel, np.transpose(self.C, [0, 1, 3, 2]))
         else:
-            vel_dot_c = simple_conv(vel, tf.transpose(self.C, [0, 1, 2, 4, 3]))
+            vel_dot_c = simple_conv(vel, np.transpose(self.C, [0, 1, 2, 4, 3]))
 
         # calc Feq
         geq = self.W * T * (1.0 + 3.0 * vel_dot_c / self.Cs ** 2 + 4.5 * vel_dot_c * vel_dot_c / (
@@ -224,14 +224,10 @@ class Domain():
         tau = self.taug[0]
         g = g - NonEq / tau
 
-        # combine boundary and no boundary values
-        # g_no_boundary = tf.multiply(g, (1.0-self.boundary))
-        # g = g_no_boundary + g_boundary
-
         if not graph_unroll:
             # make step
-            collid_step = self.gtemp[0].assign(g)
-            return collid_step
+            self.gtemp[0] = g
+            return self.gtemp[0]
         else:
             # put computation back in graph
             self.gtemp[0] = g
@@ -241,76 +237,25 @@ class Domain():
     def ApplyBC(self):
         # upper boundary
         g = self.g[0]
-        g_inn = g[:, 1:-1, 1:-1, :]
-        g = self.gtemp[0]
-        # update upper wall
-        if self.boundaryT2[0].type == 'CT':
-            gup = g[:, :1, :, :]
-            gwall = (tf.ones_like(gup[:, :, :, 0:1]) * self.boundaryT2[0].value \
-                     - gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 3:4] + gup[:, :, :, 4:5] + gup[:, :, :,7:8]\
-                     + gup[:, :,:, 8:]) \
-                    / (self.W[:, :, :, 2:3] + self.W[:, :, :, 5:6] + self.W[:, :, :, 6:7])
-            guup = tf.concat(values=[gup[:, :, :, 0:2], gwall * self.W[:, :, :, 2:3], \
-                                     gup[:, :, :, 3:5], gwall * self.W[:, :, :, 5:6], \
-                                     gwall * self.W[:, :, :, 6:7], gup[:, :, :, 7:]], axis=-1)
-        # update down wall
-        if self.boundaryT2[2].type == 'CT':
-            gup = g[:, -2:-1, :, :]
-            gwall = (tf.ones_like(gup[:, :, :, 0:1]) * self.boundaryT2[2].value \
-                     - gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 2:3] + gup[:, :, :, 3:4] + gup[:, :, :,5:6]\
-                     + gup[:, :, :, 6:7]) \
-                    / (self.W[:, :, :, 4:5] + self.W[:, :, :, 7:8] + self.W[:, :, :, 8:])
-            gdown = tf.concat(values=[gup[:, :, :, 0:4], gwall * self.W[:, :, :, 4:5], \
-                                      gup[:, :, :, 5:7], gwall * self.W[:, :, :, 7:8], \
-                                      gwall * self.W[:, :, :, 8:]], axis=-1)
-
-        # update right wall
-        if self.boundaryT2[1].type == 'ZF':
-            gup = g[:, :, -2:-1, :]
-            gwall = (gup[:, :, :, 1:2] + gup[:, :, :, 5:6] + gup[:, :, :, 8:]) \
-                    / (self.W[:, :, :, 3:4] + self.W[:, :, :, 6:7] + self.W[:, :, :, 7:8])
-            gright = tf.concat(values=[gup[:, :, :, 0:3], gwall * self.W[:, :, :, 3:4], \
-                                       gup[:, :, :, 4:6], gwall * self.W[:, :, :, 6:7], \
-                                       gwall * self.W[:, :, :, 7:8], gup[:, :, :, 8:]], axis=-1)
-
-        # update left wall
-        if self.boundaryT2[3].type == 'ZF':
-            gup = g[:, :, :1, :]
-            gwall = (gup[:, :, :, 3:4] + gup[:, :, :, 6:7] + gup[:, :, :, 7:8]) \
-                    / (self.W[:, :, :, 1:2] + self.W[:, :, :, 5:6] + self.W[:, :, :, 8:])
-            gleft = tf.concat(values=[gup[:, :, :, 0:1], gwall * self.W[:, :, :, 1:2], \
-                                      gup[:, :, :, 2:5], gwall * self.W[:, :, :, 5:6], \
-                                       gup[:, :, :, 6:8],gwall * self.W[:, :, :, 8:]], axis=-1)
-
-        res = tf.concat(
-            values=[guup, tf.concat(values=[gleft[:, 1:-1, :, :], g_inn, gright[:, 1:-1, :, :]], axis=2), gdown],
-            axis=1)
-        updbc_step = self.g[0].assign(res)
-        return updbc_step
-
-    def ApplyBC(self):
-        # upper boundary
-        g = self.g[0]
-        g_inn = g[:, 1:-1, 1:-1, :]
         # g = self.gtemp[0]
         # update upper wall
         if self.boundaryT2[0].type == 'CT':
             gup = g[:, :1, :, :]
-            gwall = (tf.ones_like(gup[:, :, :, 0:1]) * self.boundaryT2[0].value \
+            gwall = (np.ones_like(gup[:, :, :, 0:1]) * self.boundaryT2[0].value \
                      - gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 3:4] + gup[:, :, :, 4:5] + gup[:, :, :,7:8]\
                      + gup[:, :,:, 8:]) \
                     / (self.W[:, :, :, 2:3] + self.W[:, :, :, 5:6] + self.W[:, :, :, 6:7])
-            guup = tf.concat(values=[gup[:, :, :, 0:2], gwall * self.W[:, :, :, 2:3], \
+            g[:, :1, :, :] = np.concatenate(values=[gup[:, :, :, 0:2], gwall * self.W[:, :, :, 2:3], \
                                      gup[:, :, :, 3:5], gwall * self.W[:, :, :, 5:6], \
                                      gwall * self.W[:, :, :, 6:7], gup[:, :, :, 7:]], axis=-1)
         # update down wall
         if self.boundaryT2[2].type == 'CT':
             gup = g[:, -2:-1, :, :]
-            gwall = (tf.ones_like(gup[:, :, :, 0:1]) * self.boundaryT2[2].value \
+            gwall = (np.ones_like(gup[:, :, :, 0:1]) * self.boundaryT2[2].value \
                      - gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 2:3] + gup[:, :, :, 3:4] + gup[:, :, :,5:6]\
                      + gup[:, :, :, 6:7]) \
                     / (self.W[:, :, :, 4:5] + self.W[:, :, :, 7:8] + self.W[:, :, :, 8:])
-            gdown = tf.concat(values=[gup[:, :, :, 0:4], gwall * self.W[:, :, :, 4:5], \
+            g[:, -2:-1, :, :] = np.concatenate(values=[gup[:, :, :, 0:4], gwall * self.W[:, :, :, 4:5], \
                                       gup[:, :, :, 5:7], gwall * self.W[:, :, :, 7:8], \
                                       gwall * self.W[:, :, :, 8:]], axis=-1)
 
@@ -319,7 +264,7 @@ class Domain():
             gup = g[:, :, -2:-1, :]
             gwall = (gup[:, :, :, 1:2] + gup[:, :, :, 5:6] + gup[:, :, :, 8:]) \
                     / (self.W[:, :, :, 3:4] + self.W[:, :, :, 6:7] + self.W[:, :, :, 7:8])
-            gright = tf.concat(values=[gup[:, :, :, 0:3], gwall * self.W[:, :, :, 3:4], \
+            g[:, :, -2:-1, :] = np.concatenate(values=[gup[:, :, :, 0:3], gwall * self.W[:, :, :, 3:4], \
                                        gup[:, :, :, 4:6], gwall * self.W[:, :, :, 6:7], \
                                        gwall * self.W[:, :, :, 7:8], gup[:, :, :, 8:]], axis=-1)
 
@@ -328,40 +273,37 @@ class Domain():
             gup = g[:, :, :1, :]
             gwall = (gup[:, :, :, 3:4] + gup[:, :, :, 6:7] + gup[:, :, :, 7:8]) \
                     / (self.W[:, :, :, 1:2] + self.W[:, :, :, 5:6] + self.W[:, :, :, 8:])
-            gleft = tf.concat(values=[gup[:, :, :, 0:1], gwall * self.W[:, :, :, 1:2], \
+            g[:, :, :1, :] = np.concatenate(values=[gup[:, :, :, 0:1], gwall * self.W[:, :, :, 1:2], \
                                       gup[:, :, :, 2:5], gwall * self.W[:, :, :, 5:6], \
                                        gup[:, :, :, 6:8],gwall * self.W[:, :, :, 8:]], axis=-1)
 
-        res = tf.concat(
-            values=[guup, tf.concat(values=[gleft[:, 1:-1, :, :], g_inn, gright[:, 1:-1, :, :]], axis=2), gdown],
-            axis=1)
-        updbc_step = self.g[0].assign(res)
-        return updbc_step
+        self.g[0] = g
+        return self.g[0]
 
 
 
     def MomentsUpdate_T(self, graph_unroll=False):
         g_pad = self.g[0]
-        T = tf.expand_dims(tf.reduce_sum(g_pad, self.Dim + 1), self.Dim + 1)
+        T = np.expand_dims(np.reduce_sum(g_pad, self.Dim + 1), self.Dim + 1)
         if not graph_unroll:
             # create steps
-            T_step = self.T[0].assign(T)
-            return T_step
+            self.T[0] = T
+            return self.T[0]
         else:
             self.T[0] = T
 
     def MomentsUpdate(self, graph_unroll=False):
         f_pad = self.F[0]
         Force = self.BForce[0]
-        Rho = tf.expand_dims(tf.reduce_sum(f_pad, self.Dim + 1), self.Dim + 1)
+        Rho = np.expand_dims(np.reduce_sum(f_pad, self.Dim + 1), self.Dim + 1)
         Vel = simple_conv(f_pad, self.C)
         Vel = Vel / (self.Cs * Rho) + Force / 2.0 / Rho
         if not graph_unroll:
             # create steps
-            Rho_step = self.Rho[0].assign(Rho)
-            Vel_step = self.Vel[0].assign(Vel)
+            self.Rho[0] = Rho
+            self.Vel[0] = Vel
             # force_step = self.BForce[0].assign(Force)
-            step = tf.group(*[Rho_step, Vel_step])
+            step = [Rho, Vel]
             return step
         else:
             self.Rho_step[0] = Rho
@@ -371,8 +313,8 @@ class Domain():
         f_pad = pad_mobius(self.Ftemp[0])
         f_pad = simple_conv(f_pad, self.St)
         if not graph_unroll:
-            step = self.F[0].assign(f_pad)
-            return step
+            self.F[0] = f_pad
+            return self.F[0]
         else:
             self.F[0] = f_pad
 
@@ -383,38 +325,35 @@ class Domain():
         # calc new velocity and density
         if not graph_unroll:
             # create steps
-            stream_step = self.g[0].assign(g_pad)
-            return stream_step
+            self.g[0] = g_pad
+            return self.g[0]
         else:
             self.g[0] = g_pad
 
 
     def Initialize(self, graph_unroll=False):
-        np_f_zeros = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float32)
-        f_zero = tf.constant(np_f_zeros)
+        f_zero = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float32)
         f_zero = f_zero + self.W
         if not graph_unroll:
-            assign_step = self.F[0].assign(f_zero)
-            assign_step_temp = self.Ftemp[0].assign(f_zero)
-            return tf.group(*[assign_step, assign_step_temp])
+            self.F[0] = f_zero
+            self.Ftemp[0] = f_zero
+            return [self.F[0], self.Ftemp[0]]
         else:
-            self.F[0].assign(f_zero)
-            self.Ftemp[0].assign(f_zero)
+            self.F[0] = f_zero
+            self.Ftemp[0] = f_zero
 
     def Initialize_T(self, graph_unroll=False):
-        np_f_zeros = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float32)
-        g_zero = tf.constant(np_f_zeros)
+        g_zero = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float32)
         g_zero = g_zero + self.W * self.Tref
         if not graph_unroll:
-            assign_step = self.g[0].assign(g_zero)
-            assign_step_temp = self.gtemp[0].assign(g_zero)
-            return tf.group(*[assign_step, assign_step_temp])
+            self.g[0] = g_zero
+            self.gtemp[0] = g_zero
+            return [self.g[0], self.gtemp[0]]
         else:
-            self.g[0].assign(g_zero)
-            self.gtemp[0].assign(g_zero)
+            self.g[0] = g_zero
+            self.gtemp[0] = g_zero
 
     def Solve(self,
-              sess,
               Tf,  # final time
               initialize_step,
               initialize_step_T,
@@ -424,33 +363,20 @@ class Domain():
               save_interval=25):
 
         # make steps
-        assign_step = self.Initialize()
-        assign_step_T = self.Initialize_T()
-
-        stream_step = self.StreamSC()
-        stream_step_T = self.Stream_T()
-
-        update_moments_step = self.MomentsUpdate()
-        update_moments_T_step = self.MomentsUpdate_T()
-
-        # force_update = self.ForceUpdate()
-
-        collide_step = self.CollideSC()
-        collide_step_T = self.Collide_T()
         bc_update_T = self.ApplyBC()
 
         # run solver
-        sess.run(assign_step)
-        sess.run(assign_step_T)
+        self.Initialize()
+        self.Initialize_T()
 
-        sess.run(initialize_step)
-        sess.run(initialize_step_T)
+        initialize_step(self)
+        initialize_step_T(self)
 
-        sess.run(stream_step)
-        sess.run(stream_step_T)
+        self.StreamSC()
+        self.Stream_T()
 
-        sess.run(update_moments_step)
-        sess.run(update_moments_T_step)
+        self.MomentsUpdate()
+        self.MomentsUpdate_T()
 
         num_steps = int(Tf / self.dt_real)
         # save_step(self, sess)
@@ -458,18 +384,20 @@ class Domain():
         # the status bar initializer
         for i in tqdm(range(num_steps)):
             if int(self.step_count % save_interval) == 0:
-                save_step(self, sess)
+                save_step(self)
             # sess.run(setup_step)
-            sess.run(force_update)
-            sess.run(collide_step)
-            sess.run(collide_step_T)
-            sess.run(stream_step)
-            sess.run(stream_step_T)
+            force_update(self)
+
+            self.CollideSC()
+            self.Collide_T()
+
+            self.StreamSC()
+            self.Stream_T()
             sess.run(bc_update_T)
 
-            sess.run(update_moments_step)
-            sess.run(update_moments_T_step)
-            # print('\n',tt[0,:,:,0])
+            self.MomentsUpdate()
+            self.MomentsUpdate_T()
+
             self.time += self.dt_real
             self.step_count += 1
 
