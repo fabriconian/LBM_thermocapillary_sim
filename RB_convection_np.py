@@ -14,12 +14,12 @@ from   LatFlow_np.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [128, 256]
-success = video.open('some_videos/rb4_T3.mov', fourcc, 30, (shape[1], shape[0]), True)
+shape = [100, 100]
+success = video.open('some_videos/lidtst_np64.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 
 def make_lid_boundaryt2(shape):
-  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float64)
   boundary[:,:,0,:] = 1.0
   boundary[:,shape[0]-1,:,:] = 1.0
   boundary[:,:,shape[1]-1,:] = 1.0
@@ -27,7 +27,7 @@ def make_lid_boundaryt2(shape):
   return boundary
 
 def make_lid_boundary(shape):
-  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float64)
   boundary[:,:,0,:] = 1.0
   boundary[:,shape[0]-1,:,:] = 1.0
   boundary[:,:,shape[1]-1,:] = 1.0
@@ -36,22 +36,22 @@ def make_lid_boundary(shape):
 def make_lid_boundary_T(shape, Tup=0.4, Tdown=0.6):
 
   #boundaryy upp
-  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float64)
   boundary[:,0,:,:] = 1.0
   bup = dom.BoundaryT(boundary=boundary,value=Tup,type='CT',n=np.array([-1,0,0]))
 
   # boundaryy down
-  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float64)
   boundary[:, -1, :, :] = 1.0
   bdown = dom.BoundaryT(boundary=boundary, value=Tdown, type='CT',n=np.array([1,0,0]))
 
   # boundaryy LEFT
-  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float64)
   boundary[:, :, 0, :] = 1.0
   bl = dom.BoundaryT(boundary=boundary,  type='ZF',n=np.array([0,0,0]))
 
   # boundaryy LEFT
-  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float32)
+  boundary = np.zeros((1, shape[0], shape[1], 1), dtype=np.float64)
   boundary[:, :, -1, :] = 1.0
   br = dom.BoundaryT(boundary=boundary, type='ZF')
 
@@ -92,6 +92,19 @@ def lid_init_step_T(domain, value=0.5):
 
   return [domain.g[0],domain.gtemp[0], domain.T[0]]
 
+def lid_setup_step(domain, value=0):
+  # inputing top velocity
+  vel = domain.Vel[0]
+  vel_out  = vel[:,1:]
+  vel_edge = vel[:,:1]
+  vel_edge[:,:,:,0] = vel_edge[:,:,:,0]+value
+  vel = np.concatenate([vel_edge,vel_out],axis=1)
+
+  # make steps
+  domain.Vel[0] = vel
+  return domain.Vel[0]
+
+
 
 def lid_save_T(domain):
   frame = domain.T[0]
@@ -107,9 +120,7 @@ def lid_save_T(domain):
 def lid_save_vel(domain):
   frame = domain.Vel[0]
   frame = np.sqrt(np.square(frame[0,:,:,0])+ np.square(frame[0,:,:,1]) + np.square(frame[0,:,:,2]))
-  # print('\n',np.max(frame),'\t',np.min(frame))
-
-
+  print('\n',np.max(frame),'\t',np.min(frame))
   frame = np.uint8(255 * frame/np.max(frame))
   frame = cv2.applyColorMap(frame, cv2.COLORMAP_RAINBOW, 2)
 
@@ -132,7 +143,7 @@ def run():
   K = 0.143E-5
   dx = 7.0E-4
   dt = 1E-4
-  beta= 3.00
+  beta= 0.0
   Tf=1.0
   Tref = 1.1
   Ndim = shape
@@ -155,9 +166,9 @@ def run():
   initialize_step = lambda domain: lid_init_step(domain, value=0.08)
   initialize_step_T = lambda domain: lid_init_step_T(domain, value=Tref)
   force_update = lambda domain: ForceUpdate(domain,Tref=Tref,beta=beta)
-
+  setup_step = lambda domain: lid_setup_step(domain, value=input_vel)
   # run steps
-  domain.Solve(Tf, initialize_step, initialize_step_T,  force_update, lid_save_T, 30)
+  domain.Solve(Tf, initialize_step, initialize_step_T,  force_update, lid_save_T, setup_step, 1)
 
 # def main(argv=None):  # pylint: disable=unused-argument
 #   run()

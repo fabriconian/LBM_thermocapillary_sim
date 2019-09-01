@@ -1,10 +1,10 @@
 
 import cv2
-from LatFlow_np.utils import *
+from LatFlow_np.utils_v2 import *
 import time
 from tqdm import *
 from matplotlib import pyplot as plt
-import LatFlow_np.D2Q9 as D2Q9
+import LatFlow_np   .D2Q9 as D2Q9
 
 class Object():
     def __init__(self,
@@ -121,18 +121,18 @@ class Domain():
 
             self.Psi.append(4.0)
 
-            self.F.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32))
-            self.Ftemp.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32))
-            self.g.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32))
-            self.gtemp.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float32))
+            self.F.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float64))
+            self.Ftemp.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float64))
+            self.g.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float64))
+            self.gtemp.append(np.zeros([1] + Ndim + [self.Nneigh], dtype=np.float64))
 
-            self.Vel.append(np.zeros([1] + Ndim + [3], dtype=np.float32))
-            self.T.append(np.zeros([1] + Ndim + [1], dtype=np.float32))
+            self.Vel.append(np.zeros([1] + Ndim + [3], dtype=np.float64))
+            self.T.append(np.zeros([1] + Ndim + [1], dtype=np.float64))
 
-            self.BForce.append(np.zeros([1] + Ndim + [3], dtype=np.float32))
-            self.QSource.append(np.zeros([1] + Ndim + [1], dtype=np.float32))
-            self.Rho.append(np.zeros([1] + Ndim + [1], dtype=np.float32))
-            self.IsSolid.append(np.zeros([1] + Ndim + [1], dtype=np.float32))
+            self.BForce.append(np.zeros([1] + Ndim + [3], dtype=np.float64))
+            self.QSource.append(np.zeros([1] + Ndim + [1], dtype=np.float64))
+            self.Rho.append(np.zeros([1] + Ndim + [1], dtype=np.float64))
+            self.IsSolid.append(np.zeros([1] + Ndim + [1], dtype=np.float64))
 
         self.EEk = np.zeros(self.Dim * [1] + [self.Nneigh])
         for n in range(3):
@@ -310,8 +310,9 @@ class Domain():
             self.Vel_step[0] = Vel
 
     def StreamSC(self, graph_unroll=False):
-        f_pad = pad_mobius(self.Ftemp[0])
-        f_pad = simple_conv(f_pad, self.St)
+        # f_pad = pad_mobius(self.Ftemp[0])
+        # f_pad = simple_conv(f_pad, self.St)
+        f_pad = simple_conv(self.Ftemp[0], self.St,1)
         if not graph_unroll:
             self.F[0] = f_pad
             return self.F[0]
@@ -320,8 +321,9 @@ class Domain():
 
     def Stream_T(self, graph_unroll=False):
         # stream f
-        g_pad = pad_mobius(self.gtemp[0])
-        g_pad = simple_conv(g_pad, self.St)
+        # g_pad = pad_mobius(self.gtemp[0])
+        # g_pad = simple_conv(g_pad, self.St)
+        g_pad = simple_conv(self.gtemp[0], self.St, 1)
         # calc new velocity and density
         if not graph_unroll:
             # create steps
@@ -332,7 +334,7 @@ class Domain():
 
 
     def Initialize(self, graph_unroll=False):
-        f_zero = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float32)
+        f_zero = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float64)
         f_zero = f_zero + self.W
         if not graph_unroll:
             self.F[0] = f_zero
@@ -343,7 +345,7 @@ class Domain():
             self.Ftemp[0] = f_zero
 
     def Initialize_T(self, graph_unroll=False):
-        g_zero = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float32)
+        g_zero = np.zeros([1] + self.Ndim + [self.Nneigh], dtype=np.float64)
         g_zero = g_zero + self.W * self.Tref
         if not graph_unroll:
             self.g[0] = g_zero
@@ -385,7 +387,7 @@ class Domain():
         for i in tqdm(range(num_steps)):
             if int(self.step_count % save_interval) == 0:
                 save_step(self)
-            # sess.run(setup_step)
+            setup_step(self)
             force_update(self)
 
             self.CollideSC()

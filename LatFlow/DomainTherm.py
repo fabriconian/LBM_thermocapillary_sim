@@ -459,7 +459,7 @@ class Domain():
         for i in tqdm(range(num_steps)):
             if int(self.step_count % save_interval) == 0:
                 save_step(self, sess)
-            # sess.run(setup_step)
+            sess.run(setup_step)
             sess.run(force_update)
             sess.run(collide_step)
             sess.run(collide_step_T)

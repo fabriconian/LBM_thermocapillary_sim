@@ -7,14 +7,14 @@ def pad_mobius(f):
   return f_mobius
 
 
-def simple_conv(x, k):
+def simple_conv(x, k,pad=0):
   """A simplified 2D or 3D convolution operation"""
   if   len(x.shape) == 4:
-    y = conv_forward(x, k,    padding=0)
+    y = conv_forward(x, k,    padding=pad)
   return y
 
 def conv_forward(X, W, b=0, stride=1, padding=0):
-    cache = W, b, stride, padding
+    # cache = W, b, stride, padding
     h_filter, w_filter, d_filters, n_filters = W.shape
     n_x, h_x, w_x, d_x, = X.shape
     h_out = (h_x - h_filter + 2 * padding) / stride + 1
@@ -32,7 +32,7 @@ def conv_forward(X, W, b=0, stride=1, padding=0):
     out = out.reshape(n_filters, h_out, w_out, n_x)
     out = out.transpose(3, 1, 2, 0)
 
-    cache = (X, W, b, stride, padding, X_col)
+    # cache = (X, W, b, stride, padding, X_col)
 
     return out
 
@@ -46,7 +46,7 @@ def get_im2col_indices(x_shape, field_height, field_width, padding=0, stride=1):
 
   i0 = np.repeat(np.arange(field_height), field_width)
   i0 = np.tile(i0, C)
-  i1 = stride * np.repeat(np.arange(out_height), out_width)
+  i1 = stride * np.repeat(np.arange(int(out_height)), int(out_width))
   j0 = np.tile(np.arange(field_width), field_height * C)
   j1 = stride * np.tile(np.arange(int(out_width)), int(out_height))
   i = i0.reshape(-1, 1) + i1.reshape(1, -1)
@@ -61,7 +61,7 @@ def im2col_indices(x, field_height, field_width, padding=1, stride=1):
   """ An implementation of im2col based on some fancy indexing """
   # Zero-pad the input
   p = padding
-  x_padded = np.pad(x, ((0, 0), (0, 0), (p, p), (p, p)), mode='constant')
+  x_padded = np.pad(x, ((0, 0), (p, p), (p, p), (0, 0)), mode='edge')
 
   k, i, j = get_im2col_indices(x.shape, field_height, field_width, padding,
                                stride)
