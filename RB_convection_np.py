@@ -14,7 +14,7 @@ from   LatFlow_np.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [100, 100]
+shape = [2, 2]
 success = video.open('some_videos/lidtst_np64.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 

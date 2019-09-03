@@ -15,7 +15,7 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [50, 50]
+shape = [100, 100]
 success = video.open('some_videos/lit_test_tf.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
