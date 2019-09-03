@@ -1,6 +1,6 @@
 
 import cv2
-from LatFlow_np.utils_v2 import *
+from LatFlow_np.utils import *
 import time
 from tqdm import *
 from matplotlib import pyplot as plt
@@ -57,11 +57,11 @@ class Domain():
         if method == "D2Q9":
             self.Nneigh = 9
             self.Dim = 2
-            self.W = np.reshape(D2Q9.WEIGHTS, (self.Dim + 1) * [1] + [self.Nneigh])
-            self.C = np.reshape(D2Q9.LVELOC, self.Dim * [1] + [self.Nneigh, 3])
-            self.Cten = np.expand_dims(np.concatenate(([[[self.C[0, 0]] * self.Ndim[1]] * self.Ndim[0]]),axis=0),0)
-            self.Op = np.reshape(D2Q9.BOUNCE, self.Dim * [1] + [self.Nneigh, self.Nneigh])
-            self.St = D2Q9.STREAM
+            self.W =  np.float64(np.reshape(D2Q9.WEIGHTS, (self.Dim + 1) * [1] + [self.Nneigh]))
+            self.C =  np.float64(np.reshape(D2Q9.LVELOC, self.Dim * [1] + [self.Nneigh, 3]))
+            self.Cten =  np.float64(np.expand_dims(np.concatenate(([[[self.C[0, 0]] * self.Ndim[1]] * self.Ndim[0]]),axis=0),0))
+            self.Op =  np.float64(np.reshape(D2Q9.BOUNCE, self.Dim * [1] + [self.Nneigh, self.Nneigh]))
+            self.St =  np.float64(D2Q9.STREAM)
 
         if nu is not list:
             nu = [nu]
@@ -387,7 +387,7 @@ class Domain():
         for i in tqdm(range(num_steps)):
             if int(self.step_count % save_interval) == 0:
                 save_step(self)
-            setup_step(self)
+            # setup_step(self)
             force_update(self)
 
             self.CollideSC()

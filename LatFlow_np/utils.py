@@ -1,4 +1,6 @@
 import numpy as np
+import LatFlow_np.cutils as cu
+# import LatFlow_np.cutils_fix as cu
 
 def pad_mobius(f):
   f_mobius = f
@@ -8,10 +10,14 @@ def pad_mobius(f):
 
 
 def simple_conv(x, k,pad=0):
-  """A simplified 2D or 3D convolution operation"""
-  if   len(x.shape) == 4:
-    y = conv_forward(x, k,    padding=pad)
-  return y
+
+    if pad!= 0:
+        y = pad_mobius(x)
+    else:
+        y = x
+    res = cu.convolve(y, k)
+    return res
+
 
 def conv_forward(X, W, b=0, stride=1, padding=0):
     # cache = W, b, stride, padding
@@ -35,6 +41,7 @@ def conv_forward(X, W, b=0, stride=1, padding=0):
     # cache = (X, W, b, stride, padding, X_col)
 
     return out
+
 
 def get_im2col_indices(x_shape, field_height, field_width, padding=0, stride=1):
   # First figure out what the size of the output should be

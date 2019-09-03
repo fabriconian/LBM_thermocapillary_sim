@@ -14,7 +14,7 @@ from   LatFlow_np.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [2, 2]
+shape = [50, 100]
 success = video.open('some_videos/lidtst_np64.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 
@@ -143,7 +143,7 @@ def run():
   K = 0.143E-5
   dx = 7.0E-4
   dt = 1E-4
-  beta= 0.0
+  beta= 3.0
   Tf=1.0
   Tref = 1.1
   Ndim = shape
@@ -168,7 +168,7 @@ def run():
   force_update = lambda domain: ForceUpdate(domain,Tref=Tref,beta=beta)
   setup_step = lambda domain: lid_setup_step(domain, value=input_vel)
   # run steps
-  domain.Solve(Tf, initialize_step, initialize_step_T,  force_update, lid_save_T, setup_step, 1)
+  domain.Solve(Tf, initialize_step, initialize_step_T,  force_update, lid_save_T, setup_step, 20)
 
 # def main(argv=None):  # pylint: disable=unused-argument
 #   run()
