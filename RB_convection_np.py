@@ -14,8 +14,8 @@ from   LatFlow_np.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [50, 100]
-success = video.open('some_videos/lidtst_np64.mov', fourcc, 30, (shape[1], shape[0]), True)
+shape = [256, 256]
+success = video.open('some_videos/verify_np.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 
 def make_lid_boundaryt2(shape):

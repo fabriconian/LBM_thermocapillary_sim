@@ -15,8 +15,8 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [100, 100]
-success = video.open('some_videos/lit_test_tf.mov', fourcc, 30, (shape[1], shape[0]), True)
+shape = [256, 256]
+success = video.open('some_videos/verify_tf.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -118,7 +118,7 @@ def lid_save_T(domain, sess):
   frame = sess.run(domain.T[0])
   frame = np.sqrt(np.square(frame[0, :, :, 0]))
 
-  # print('\n', np.max(frame), '\t', np.min(frame))
+  print('\n', np.max(frame), '\t', np.min(frame))
   frame = np.uint8(255 * (frame-np.min(frame)) / (np.max(frame)-np.min(frame)))
   frame = cv2.applyColorMap(frame, cv2.COLORMAP_HOT, 2)
   video.write(frame)
@@ -153,7 +153,7 @@ def run():
   K = 0.143E-5
   dx = 7.0E-4
   dt = 1E-4
-  beta= 0.00
+  beta= 3.00
   Tf=1.0
   Tref = 1.1
   Ndim = shape
@@ -187,7 +187,7 @@ def run():
   sess.run(init)
 
   # run steps
-  domain.Solve(sess, Tf, initialize_step, initialize_step_T,  force_update, lid_save_T,setup_step, 1)
+  domain.Solve(sess, Tf, initialize_step, initialize_step_T,  force_update, lid_save_T,setup_step, 20)
 
 def main(argv=None):  # pylint: disable=unused-argument
   run()
