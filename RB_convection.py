@@ -187,7 +187,7 @@ def run():
   sess.run(init)
 
   # run steps
-  domain.Solve(sess, Tf, initialize_step, initialize_step_T,  force_update, lid_save_T,setup_step, 20)
+  domain.Solve(sess, Tf, initialize_step, initialize_step_T, lid_save_T, force_update, save_interval=20)
 
 def main(argv=None):  # pylint: disable=unused-argument
   run()

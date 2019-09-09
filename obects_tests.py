@@ -8,14 +8,14 @@ import cv2
 
 from matplotlib import pyplot as plt
 
-import LatFlow.DomainTherm as dom
+import LatFlow.DomainObjects as dom
 from   LatFlow.utils  import *
 
 # video init
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [40, 40]
+shape = [100, 100]
 success = video.open('some_videos/rb4_T3.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
@@ -110,10 +110,10 @@ def lid_save_vel(domain, sess):
 
   video.write(frame)
 
-def ForceUpdate(domain,Tref):
+def ForceUpdate(domain,Tref,beta):
     g = 9.8 * domain.dt_real * domain.dt_real / domain.dx_real
     # Tref = domain.Tref
-    force = tf.concat(values=[tf.zeros_like(domain.T[0]), ( -domain.beta * g * (domain.T[0] -  Tref)),
+    force = tf.concat(values=[tf.zeros_like(domain.T[0]), ( -beta * g * (domain.T[0] -  Tref)),
                               tf.zeros_like(domain.T[0])], axis=3)
     update = domain.BForce[0].assign(force)
     return update
@@ -127,7 +127,7 @@ def Create_objects(shape=None,n=10,r=None,R0=np.array([10,10]),V0=np.array([0,0]
     vertices = np.ones([verty.shape[0],2])
     vertices[:,0] = vertx
     vertices[:,1] = verty
-    objects = [dom.Object(
+    objects = [dom.Object_np(
         vertices=vertices,
         rc=R0,
         vc=V0
@@ -166,7 +166,7 @@ def run():
 
   initialize_step = lid_init_step(domain, value=0.08)
   initialize_step_T = lid_init_step_T(domain, value=Tref)
-  force_update = ForceUpdate(domain,Tref=Tref)
+  force_update = ForceUpdate(domain,Tref=Tref,beta=beta)
 
   # init things
   init = tf.global_variables_initializer()

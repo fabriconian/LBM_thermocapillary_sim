@@ -435,6 +435,7 @@ class Domain():
               force_update,
               save_step,
               setup_step=None,
+
               save_interval=25):
 
         # make steps
@@ -452,7 +453,7 @@ class Domain():
         collide_step = self.CollideSC()
         collide_step_T = self.Collide_T()
         bc_update_T = self.ApplyBC()
-
+        create_polygon_vek(self.Ndim, self.objects[0].vertices)
         # run solver
         sess.run(assign_step)
         sess.run(assign_step_T)
@@ -473,7 +474,7 @@ class Domain():
         for i in tqdm(range(num_steps)):
             if int(self.step_count % save_interval) == 0:
                 save_step(self, sess)
-            sess.run(setup_step)
+            # sess.run(setup_step)
             sess.run(force_update)
             sess.run(collide_step)
             sess.run(collide_step_T)
