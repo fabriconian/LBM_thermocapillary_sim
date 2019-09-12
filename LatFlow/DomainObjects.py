@@ -10,7 +10,8 @@ class Object_np():
     def __init__(self,
                  vertices,
                  rc=np.array([0,0]),
-                 vc=np.array([0,0]),
+                 vc=np.array([0,0])
+
                 ):
         self.rc = rc
         self.vc = vc
@@ -29,9 +30,44 @@ class Object():
         self.vc = tf.Variable(vc,dtype=tf.float32)
         self.vertices = tf.Variable(vertices,dtype=tf.float32)
 
+
     def Updait(self,dt):
         self.rc.assign(self.vc*dt+self.rc)
 
+    def create_polygon(self, idxs):
+        """
+        Creates np.array with dimensions defined by shape
+        Fills polygon defined by vertices with ones, all other values zero"""
+
+        p2 = self.vertices
+        p1 = tf.concat([p2[-1:], p2[:-1]], 0)
+
+        fill = tf.reduce_all(self.check_vector_tf(p1, p2, idxs), axis=0)
+        res = tf.dtypes.cast(fill, tf.float32)
+
+        return res
+
+    def check_vector_tf(self, p1, p2, idxs):
+        """
+        Uses the line defined by p1 and p2 to check array of
+        input indices against interpolated value
+
+        Returns boolean array, with True inside and False outside of shape
+        """
+
+        idxs = tf.dtypes.cast(tf.concat([p1.shape[0] * [idxs]], axis=0),tf.float32)
+        shape = idxs[:,0].shape
+
+        p1x = tf.transpose(tf.ones([shape[2], shape[1], shape[0]]) * p1[:, 0], (2,1,0))
+        p1y = tf.transpose(tf.ones([shape[2], shape[1],shape[0]]) * p1[:, 1],(2,1,0))
+        p2x = tf.transpose(tf.ones([shape[2], shape[1],shape[0]]) * p2[:, 0],(2,1,0))
+        p2y = tf.transpose(tf.ones([shape[2], shape[1],shape[0]]) * p2[:, 1],(2,1,0))
+
+        # Calculate max column idx for each row idx based on interpolated line between two points
+        max_col_idx = (idxs[:, 0] - p1x) / (p2x - p1x) * (p2y - p1y) + p1y
+        sign = tf.sign(p2x - p1x)
+        res = idxs[:, 1] * sign <= max_col_idx * sign
+        return res
 
 class BoundaryT():
     def __init__(self,
@@ -96,6 +132,8 @@ class Domain():
         self.boundary = tf.constant(boundary)
         self.boundaryT2 = boundary_T
         self.objects  = objects
+        self.idxs = tf.concat([tf.expand_dims(tf.tile(tf.expand_dims(tf.range(0,Ndim[0]),1),[1,Ndim[1]]),0),
+                                   tf.expand_dims(tf.tile(tf.expand_dims(tf.range(0, Ndim[1]), 0), [Ndim[0], 1]),0)],0)
         self.Nl = len(nu)
         self.tau = []
         self.taug = []
@@ -453,7 +491,9 @@ class Domain():
         collide_step = self.CollideSC()
         collide_step_T = self.Collide_T()
         bc_update_T = self.ApplyBC()
-        create_polygon_vek(self.Ndim, self.objects[0].vertices)
+
+        # create_polygon_tf(self.idxs, self.objects[0].vertices)
+        self.objects[0].create_polygon(self.idxs)
         # run solver
         sess.run(assign_step)
         sess.run(assign_step_T)
@@ -484,7 +524,7 @@ class Domain():
 
             sess.run(update_moments_step)
             sess.run(update_moments_T_step)
-            # print('\n',tt[0,:,:,0])
+
             self.time += self.dt_real
             self.step_count += 1
 

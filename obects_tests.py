@@ -15,7 +15,7 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [100, 100]
+shape = [100, 50]
 success = video.open('some_videos/rb4_T3.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
@@ -127,11 +127,10 @@ def Create_objects(shape=None,n=10,r=None,R0=np.array([10,10]),V0=np.array([0,0]
     vertices = np.ones([verty.shape[0],2])
     vertices[:,0] = vertx
     vertices[:,1] = verty
-    objects = [dom.Object_np(
+    objects = [dom.Object(
         vertices=vertices,
         rc=R0,
-        vc=V0
-
+        vc=V0,
     )]
     return objects
 
