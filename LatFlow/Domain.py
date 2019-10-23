@@ -7,8 +7,8 @@ import time
 from tqdm import *
 
 import LatFlow.D2Q9 as D2Q9
-import LatFlow.D3Q15 as D3Q15
-import LatFlow.D3Q19 as D3Q19
+# import LatFlow.D3Q15 as D3Q15
+# import LatFlow.D3Q19 as D3Q19
 
 
 
@@ -32,21 +32,21 @@ class Domain():
       self.Op     = tf.reshape(D2Q9.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
       self.St     = D2Q9.STREAM
 
-    if method == "D3Q15":
-      self.Nneigh = 15
-      self.Dim    = 3
-      self.W      = tf.reshape(D3Q15.WEIGHTS, (self.Dim + 1)*[1] + [self.Nneigh])
-      self.C      = tf.reshape(D3Q15.LVELOC, self.Dim*[1] + [self.Nneigh,3])
-      self.Op     = tf.reshape(D3Q15.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
-      self.St     = D3Q15.STREAM
-
-    if method == "D3Q19":
-      self.Nneigh = 19
-      self.Dim    = 3
-      self.W      = tf.reshape(D3Q19.WEIGHTS, (self.Dim + 1)*[1] + [self.Nneigh])
-      self.C      = tf.reshape(D3Q19.LVELOC, self.Dim*[1] + [self.Nneigh,3])
-      self.Op     = tf.reshape(D3Q19.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
-      self.St     = D3Q19.STREAM
+    # if method == "D3Q15":
+    #   self.Nneigh = 15
+    #   self.Dim    = 3
+    #   self.W      = tf.reshape(D3Q15.WEIGHTS, (self.Dim + 1)*[1] + [self.Nneigh])
+    #   self.C      = tf.reshape(D3Q15.LVELOC, self.Dim*[1] + [self.Nneigh,3])
+    #   self.Op     = tf.reshape(D3Q15.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
+    #   self.St     = D3Q15.STREAM
+    #
+    # if method == "D3Q19":
+    #   self.Nneigh = 19
+    #   self.Dim    = 3
+    #   self.W      = tf.reshape(D3Q19.WEIGHTS, (self.Dim + 1)*[1] + [self.Nneigh])
+    #   self.C      = tf.reshape(D3Q19.LVELOC, self.Dim*[1] + [self.Nneigh,3])
+    #   self.Op     = tf.reshape(D3Q19.BOUNCE, self.Dim*[1] + [self.Nneigh,self.Nneigh])
+    #   self.St     = D3Q19.STREAM
 
     if nu is not list:
       nu = [nu]
@@ -241,8 +241,9 @@ class Domain():
 
     #the status bar initializer
     for i in tqdm(range(num_steps)):
-      if int(self.time/save_interval) > int((self.time-self.dt)/save_interval):
-        save_step(self, sess)
+      # if int(self.time/save_interval) > int((self.time-self.dt)/save_interval):
+      #   save_step(self, sess)
+
       sess.run(setup_step) 
       sess.run(collide_step)
       sess.run(stream_step)

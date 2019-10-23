@@ -493,7 +493,7 @@ class Domain():
         bc_update_T = self.ApplyBC()
 
         # create_polygon_tf(self.idxs, self.objects[0].vertices)
-        self.objects[0].create_polygon(self.idxs)
+        z = self.objects[0].create_polygon(self.idxs)
         # run solver
         sess.run(assign_step)
         sess.run(assign_step_T)
