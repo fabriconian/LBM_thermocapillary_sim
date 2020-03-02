@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 import math
 import cv2
-
+import time
 import LatFlow.Domain as dom
 from   LatFlow.utils  import *
 
@@ -13,7 +13,7 @@ from   LatFlow.utils  import *
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 
-shape = [256, 256]
+shape = [512,512]
 success = video.open('lid_flow.mov', fourcc, 30, (shape[1], shape[0]), True)
 
 FLAGS = tf.app.flags.FLAGS
@@ -64,7 +64,7 @@ def lid_save(domain, sess):
 
 def run():
   # constants
-  input_vel = 0.001
+  input_vel = 0.1
   nu = input_vel*(10.0)
   Ndim = shape
   boundary = make_lid_boundary(shape=Ndim)
@@ -86,11 +86,13 @@ def run():
   sess.run(init)
 
   # run steps
-  domain.Solve(sess, 1000, initialize_step, setup_step, lid_save, 60)
+  domain.Solve(sess, 10000, initialize_step, setup_step, lid_save, 60)
 
 def main(argv=None):  # pylint: disable=unused-argument
   run()
 
 if __name__ == '__main__':
+  t = time.time()
   tf.app.run()
+  print(time.time()-t)
 

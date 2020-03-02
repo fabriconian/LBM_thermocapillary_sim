@@ -162,7 +162,7 @@ def run():
   boundaryt2 = make_lid_boundaryt2(shape=Ndim)
 
   # domain
-  domain = dom.Domain(method="D2Q9",
+  domain = dom.DomainTherm(method="D2Q9",
                       Ndim=Ndim,
                       tauf= 0.53,
                       taug=0.9,

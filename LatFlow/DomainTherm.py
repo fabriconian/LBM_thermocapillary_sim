@@ -247,8 +247,8 @@ class Domain():
         if self.boundaryT2[0].type == 'CT':
             gup = g[:, :1, :, :]
             gwall = (tf.ones_like(gup[:, :, :, 0:1]) * self.boundaryT2[0].value \
-                     - gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 3:4] + gup[:, :, :, 4:5] + gup[:, :, :,7:8]\
-                     + gup[:, :,:, 8:]) \
+                     - (gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 3:4] + gup[:, :, :, 4:5] + gup[:, :, :,7:8]\
+                     + gup[:, :,:, 8:])) \
                     / (self.W[:, :, :, 2:3] + self.W[:, :, :, 5:6] + self.W[:, :, :, 6:7])
             guup = tf.concat(values=[gup[:, :, :, 0:2], gwall * self.W[:, :, :, 2:3], \
                                      gup[:, :, :, 3:5], gwall * self.W[:, :, :, 5:6], \
@@ -257,8 +257,8 @@ class Domain():
         if self.boundaryT2[2].type == 'CT':
             gup = g[:, -2:-1, :, :]
             gwall = (tf.ones_like(gup[:, :, :, 0:1]) * self.boundaryT2[2].value \
-                     - gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 2:3] + gup[:, :, :, 3:4] + gup[:, :, :,5:6]\
-                     + gup[:, :, :, 6:7]) \
+                     - (gup[:, :, :, 0:1] + gup[:, :, :, 1:2] + gup[:, :, :, 2:3] + gup[:, :, :, 3:4] + gup[:, :, :,5:6]\
+                     + gup[:, :, :, 6:7])) \
                     / (self.W[:, :, :, 4:5] + self.W[:, :, :, 7:8] + self.W[:, :, :, 8:])
             gdown = tf.concat(values=[gup[:, :, :, 0:4], gwall * self.W[:, :, :, 4:5], \
                                       gup[:, :, :, 5:7], gwall * self.W[:, :, :, 7:8], \
@@ -287,7 +287,7 @@ class Domain():
             axis=1)
         updbc_step = self.g[0].assign(res)
         return updbc_step
-
+    '''
     def ApplyBC(self):
         # upper boundary
         g = self.g[0]
@@ -337,7 +337,7 @@ class Domain():
             axis=1)
         updbc_step = self.g[0].assign(res)
         return updbc_step
-
+    '''
 
 
     def MomentsUpdate_T(self, graph_unroll=False):
